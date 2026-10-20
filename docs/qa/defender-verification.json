@@ -1,0 +1,30 @@
+{
+  "sinceUtc": "2026-10-20T07:06:03.5431333+00:00",
+  "checkedUtc": "2026-10-20T07:09:37.4024561+00:00",
+  "os": "Microsoft Windows NT 10.0.19045.0",
+  "architecture": "x64",
+  "os64Bit": true,
+  "antivirusEnabled": true,
+  "realTimeProtectionEnabled": true,
+  "behaviorMonitorEnabled": true,
+  "signatureVersion": "1.461.102.0",
+  "observedProjectDetectionEvents": 0,
+  "observedProjectDetections": 0,
+  "artifacts": [
+    {
+      "name": "NAS Backup Manager.exe",
+      "sha256": "1A800B762BEBA294ACCAB479E3C2C99CCDBF45D4FBB8A9EA5FF3DE84084D1171",
+      "bytes": 12548096
+    },
+    {
+      "name": "nas-backup.exe",
+      "sha256": "6744CC393E567D6CBB47354B221B0EED9AA727FB8410E27DA3478771C9E78BD8",
+      "bytes": 2515968
+    },
+    {
+      "name": "nas-backup-notify.exe",
+      "sha256": "C7FAEF75A43182CBA127E86CA50D0A6C9FDA434FEF004F12525F944FCA5DDA10",
+      "bytes": 21504
+    }
+  ]
+}

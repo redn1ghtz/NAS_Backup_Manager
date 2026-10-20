@@ -1,0 +1,38 @@
+[
+  {
+    "architecture": "x64",
+    "language": "ru",
+    "installed": true,
+    "ownTasksRemoved": true,
+    "foreignTasksPreserved": true,
+    "userDataPreserved": true,
+    "scheduleFlagsDisabled": true
+  },
+  {
+    "architecture": "x64",
+    "language": "en",
+    "installed": true,
+    "ownTasksRemoved": true,
+    "foreignTasksPreserved": true,
+    "userDataPreserved": true,
+    "scheduleFlagsDisabled": true
+  },
+  {
+    "architecture": "x86",
+    "language": "ru",
+    "installed": true,
+    "ownTasksRemoved": true,
+    "foreignTasksPreserved": true,
+    "userDataPreserved": true,
+    "scheduleFlagsDisabled": true
+  },
+  {
+    "architecture": "x86",
+    "language": "en",
+    "installed": true,
+    "ownTasksRemoved": true,
+    "foreignTasksPreserved": true,
+    "userDataPreserved": true,
+    "scheduleFlagsDisabled": true
+  }
+]

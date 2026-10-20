@@ -1,0 +1,16 @@
+{
+  "architecture": "x86",
+  "label": "after",
+  "os": "Microsoft Windows NT 10.0.19045.0",
+  "os64Bit": true,
+  "cpu": "Intel(R) CC150 CPU @ 3.50GHz",
+  "logicalCores": 16,
+  "ramGiB": 15.92,
+  "seconds": 8.003,
+  "processes": 7,
+  "cpuMs": 46.875,
+  "oneCoreCpuPercent": 0.586,
+  "peakWorkingSetMiB": 313.87,
+  "peakPrivateMiB": 176.07,
+  "scenario": "Empty visible GUI plus WebView descendants; no jobs or NAS; 5s startup excluded"
+}

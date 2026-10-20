@@ -1,0 +1,150 @@
+[
+  {
+    "ecosystem": "rust",
+    "name": "alloc-stdlib",
+    "version": "0.3.0",
+    "notices": [
+      {
+        "file": "docs/third-party/notices/rust-alloc-stdlib-0.3.0-LICENSE",
+        "origin": "https://raw.githubusercontent.com/dropbox/rust-alloc-no-stdlib/0a81fd6928ea3b33c8cd484aa4575d50ffb98012/LICENSE",
+        "sha256": "c0c56f26d9c051cac4d200c34c84e7ae9aaa853e01a982a1df08b09931e518ae"
+      }
+    ]
+  },
+  {
+    "ecosystem": "rust",
+    "name": "selectors",
+    "version": "0.38.0",
+    "notices": [
+      {
+        "file": "docs/third-party/notices/rust-selectors-0.38.0-MPL-2.0.txt",
+        "origin": "https://raw.githubusercontent.com/spdx/license-list-data/main/text/MPL-2.0.txt",
+        "sha256": "66a3107d5ad6a058aab753eaac2047ccb2ed0e39465dd0fe5844da3e300d5172"
+      }
+    ]
+  },
+  {
+    "ecosystem": "rust",
+    "name": "tauri-plugin",
+    "version": "2.7.2",
+    "notices": [
+      {
+        "file": "docs/third-party/notices/rust-tauri-plugin-2.7.2-LICENSE-APACHE-2.0",
+        "origin": "https://raw.githubusercontent.com/tauri-apps/tauri/59b63ab500da9859f12d8888c3298bc29bba0b92/LICENSE-APACHE-2.0",
+        "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594"
+      },
+      {
+        "file": "docs/third-party/notices/rust-tauri-plugin-2.7.2-LICENSE-MIT",
+        "origin": "https://raw.githubusercontent.com/tauri-apps/tauri/59b63ab500da9859f12d8888c3298bc29bba0b92/LICENSE-MIT",
+        "sha256": "9dd42ea92cff2ede5cd477cbfcce051b2d0115c0ac7f368ee88cb545055dff1d"
+      },
+      {
+        "file": "docs/third-party/notices/rust-tauri-plugin-2.7.2-LICENSE.spdx",
+        "origin": "https://raw.githubusercontent.com/tauri-apps/tauri/59b63ab500da9859f12d8888c3298bc29bba0b92/LICENSE.spdx",
+        "sha256": "5e834fe9788c524210deda859c46a550ffa5aa0cba9ea0572f0d81120e97c008"
+      }
+    ]
+  },
+  {
+    "ecosystem": "rust",
+    "name": "webview2-com",
+    "version": "0.39.1",
+    "notices": [
+      {
+        "file": "docs/third-party/notices/rust-webview2-com-0.39.1-LICENSE",
+        "origin": "https://raw.githubusercontent.com/wravery/webview2-rs/edc2caf886175ccaebe86078c9cfe1ae2a187328/LICENSE",
+        "sha256": "0dcf41516e608bbcb6cdc5229feb7b86fe4a643b85e7df251133c93408fdac73"
+      }
+    ]
+  },
+  {
+    "ecosystem": "rust",
+    "name": "webview2-com-macros",
+    "version": "0.8.1",
+    "notices": [
+      {
+        "file": "docs/third-party/notices/rust-webview2-com-macros-0.8.1-LICENSE",
+        "origin": "https://raw.githubusercontent.com/wravery/webview2-rs/dffa41a8a46d3f5565eefbff2de57d38d399f158/LICENSE",
+        "sha256": "0dcf41516e608bbcb6cdc5229feb7b86fe4a643b85e7df251133c93408fdac73"
+      }
+    ]
+  },
+  {
+    "ecosystem": "rust",
+    "name": "webview2-com-sys",
+    "version": "0.39.1",
+    "notices": [
+      {
+        "file": "docs/third-party/notices/rust-webview2-com-sys-0.39.1-LICENSE",
+        "origin": "https://raw.githubusercontent.com/wravery/webview2-rs/edc2caf886175ccaebe86078c9cfe1ae2a187328/LICENSE",
+        "sha256": "0dcf41516e608bbcb6cdc5229feb7b86fe4a643b85e7df251133c93408fdac73"
+      }
+    ]
+  },
+  {
+    "ecosystem": "npm",
+    "name": "@esbuild/win32-x64",
+    "version": "0.28.2",
+    "notices": [
+      {
+        "file": "docs/third-party/notices/npm-esbuild_win32-x64-0.28.2-LICENSE.md",
+        "origin": "Same-version upstream project notice from npm esbuild@0.28.2",
+        "sha256": "b40ec5baec7bb34fa5b1c09521fa3cd52d5fad7adafed74932a2010d3612a681"
+      }
+    ]
+  },
+  {
+    "ecosystem": "npm",
+    "name": "@rollup/rollup-win32-x64-gnu",
+    "version": "4.64.10",
+    "notices": [
+      {
+        "file": "docs/third-party/notices/npm-rollup_rollup-win32-x64-gnu-4.64.10-LICENSE.md",
+        "origin": "Same-version upstream project notice from npm rollup@4.64.10",
+        "sha256": "fa1bd040c5bdeefe65b3821cebf474f2733ce65df13089bd151dda1778e62fe8"
+      }
+    ]
+  },
+  {
+    "ecosystem": "npm",
+    "name": "@rollup/rollup-win32-x64-msvc",
+    "version": "4.64.10",
+    "notices": [
+      {
+        "file": "docs/third-party/notices/npm-rollup_rollup-win32-x64-msvc-4.64.10-LICENSE.md",
+        "origin": "Same-version upstream project notice from npm rollup@4.64.10",
+        "sha256": "fa1bd040c5bdeefe65b3821cebf474f2733ce65df13089bd151dda1778e62fe8"
+      }
+    ]
+  },
+  {
+    "ecosystem": "npm",
+    "name": "@tauri-apps/cli-win32-x64-msvc",
+    "version": "2.12.3",
+    "notices": [
+      {
+        "file": "docs/third-party/notices/npm-tauri-apps_cli-win32-x64-msvc-2.12.3-LICENSE-APACHE-2.0",
+        "origin": "Same-version upstream project notice from npm @tauri-apps/cli@2.12.3",
+        "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594"
+      },
+      {
+        "file": "docs/third-party/notices/npm-tauri-apps_cli-win32-x64-msvc-2.12.3-LICENSE-MIT",
+        "origin": "Same-version upstream project notice from npm @tauri-apps/cli@2.12.3",
+        "sha256": "9dd42ea92cff2ede5cd477cbfcce051b2d0115c0ac7f368ee88cb545055dff1d"
+      }
+    ]
+  },
+  {
+    "ecosystem": "npm",
+    "name": "react-remove-scroll-bar",
+    "version": "2.3.8",
+    "note": "Upstream default-branch notice; npm gitHead URL unavailable, version-specific notice comparison remains a publisher review item.",
+    "notices": [
+      {
+        "file": "docs/third-party/notices/npm-react-remove-scroll-bar-2.3.8-LICENSE",
+        "origin": "https://raw.githubusercontent.com/theKashey/react-remove-scroll-bar/master/LICENSE",
+        "sha256": "a79aae0c0f21990d9d963bb3c5a79cdcea9a46f8523ba55c58d7fe776b6ebc84"
+      }
+    ]
+  }
+]

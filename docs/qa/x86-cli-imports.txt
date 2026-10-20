@@ -1,0 +1,30 @@
+Microsoft (R) COFF/PE Dumper Version 14.44.35229.0
+Copyright (C) Microsoft Corporation.  All rights reserved.
+
+
+Dump of file portable\NAS Backup Manager x86\nas-backup.exe
+
+File Type: EXECUTABLE IMAGE
+
+  Image has the following dependencies:
+
+    kernel32.dll
+    bcryptprimitives.dll
+    api-ms-win-core-synch-l1-2-0.dll
+    KERNEL32.dll
+    ntdll.dll
+    api-ms-win-crt-string-l1-1-0.dll
+    api-ms-win-crt-math-l1-1-0.dll
+    api-ms-win-crt-heap-l1-1-0.dll
+    api-ms-win-crt-utility-l1-1-0.dll
+    api-ms-win-crt-time-l1-1-0.dll
+    api-ms-win-crt-runtime-l1-1-0.dll
+    api-ms-win-crt-stdio-l1-1-0.dll
+    api-ms-win-crt-locale-l1-1-0.dll
+
+  Summary
+
+        5000 .data
+       35000 .rdata
+        F000 .reloc
+      1A8000 .text

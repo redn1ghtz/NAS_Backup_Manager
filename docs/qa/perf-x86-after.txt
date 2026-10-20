@@ -1,0 +1,9 @@
+
+running 1 test
+test performance_10k_small_files has been running for over 60 seconds
+fixture=2.9219565s, initial=149.8950675s, unchanged_preview=7.2163905s
+process_metrics={"privateBytes":16879616,"peakWorkingSetBytes":26882048,"cpuMs":115562.5}
+test performance_10k_small_files ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 33 filtered out; finished in 163.75s
+
