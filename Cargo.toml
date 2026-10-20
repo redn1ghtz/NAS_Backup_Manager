@@ -1,0 +1,16 @@
+[workspace]
+members = ["crates/core", "crates/storage", "crates/scheduler", "crates/cli", "apps/desktop/src-tauri"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0-alpha"
+edition = "2021"
+license = "MIT"
+rust-version = "1.90"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[profile.release]
+lto = "thin"
+strip = true
