@@ -1,0 +1,17 @@
+[package]
+name = "nas-backup-scheduler"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+nas-backup-core = { path = "../core" }
+chrono = "0.4"
+
+[dev-dependencies]
+tempfile = "3"
+nas-backup-storage = { path = "../storage" }
+
+[lints]
+workspace = true

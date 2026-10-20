@@ -1,0 +1,23 @@
+[package]
+name = "nas-backup-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+nas-backup-storage = { path = "../storage" }
+rusqlite = { version = "0.38", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+uuid = { version = "1", features = ["v4"] }
+file-id = "0.2.3"
+sha2 = "0.10"
+filetime = "0.2"
+fs2 = "0.4"
+chrono = "0.4"
+
+[dev-dependencies]
+tempfile = "3"
+
+[lints]
+workspace = true
