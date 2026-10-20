@@ -1,0 +1,24 @@
+[package]
+name = "nas-backup-desktop"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri-plugin-dialog = "2"
+nas-backup-core = { path = "../../../crates/core" }
+nas-backup-storage = { path = "../../../crates/storage" }
+nas-backup-scheduler = { path = "../../../crates/scheduler" }
+
+[dev-dependencies]
+tempfile = "3"
+
+[lints]
+workspace = true
