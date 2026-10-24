@@ -47,10 +47,10 @@ impl Database {
                 [],
                 |r| r.get(0),
             )?;
-            if version == 10 {
+            if version == 13 {
                 return Ok(Self { connection });
             }
-            if !(1..=9).contains(&version) {
+            if !(1..=13).contains(&version) {
                 return Err(DatabaseError::UnsupportedVersion(version));
             }
         }
@@ -69,7 +69,7 @@ impl Database {
             [],
             |row| row.get(0),
         )?;
-        if !(1..=10).contains(&version) {
+        if !(1..=13).contains(&version) {
             return Err(DatabaseError::UnsupportedVersion(version));
         }
         if version == 1 {
@@ -98,6 +98,16 @@ impl Database {
         }
         if version <= 9 {
             transaction.execute_batch(include_str!("../migrations/0010_verified_progress.sql"))?;
+        }
+        if version <= 10 {
+            transaction.execute_batch(include_str!("../migrations/0011_advanced_jobs.sql"))?;
+        }
+        if version <= 11 {
+            transaction.execute_batch(include_str!("../migrations/0012_archive_codec.sql"))?;
+        }
+        if version <= 12 {
+            transaction
+                .execute_batch(include_str!("../migrations/0013_notification_settings.sql"))?;
         }
         transaction.commit()?;
         Ok(Self { connection })
@@ -158,7 +168,7 @@ mod tests {
     #[test]
     fn migrates_empty_database_and_reopens_without_losing_settings() {
         let db = Database::initialize(Connection::open_in_memory().unwrap()).unwrap();
-        assert_eq!(db.schema_version().unwrap(), 10);
+        assert_eq!(db.schema_version().unwrap(), 13);
         assert_eq!(db.active_job_count().unwrap(), 0);
         assert_eq!(db.language().unwrap(), "ru");
         assert!(db.notifications_enabled().unwrap());
@@ -179,7 +189,7 @@ mod tests {
             .unwrap();
         c.execute("INSERT INTO jobs(id,name,source_path,destination_path,destination_kind,retention_days,daily_minute,created_at,updated_at) VALUES('existing','keep','source','dest','local',45,725,1,1)",[]).unwrap();
         let db = Database::initialize(c).unwrap();
-        assert_eq!(db.schema_version().unwrap(), 10);
+        assert_eq!(db.schema_version().unwrap(), 13);
         let values:(u32,u16,String,String,u32)=db.connection.query_row("SELECT retention_days,daily_minute,archive_mode,schedule_kind,schedule_every FROM jobs WHERE id='existing'",[],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?))).unwrap();
         assert_eq!(values, (45, 725, "days".into(), "daily".into(), 1));
         assert_eq!(
@@ -238,14 +248,42 @@ mod tests {
     }
 
     #[test]
+    fn upgrades_v12_without_modifying_jobs_or_settings() {
+        let t = tempfile::tempdir().unwrap();
+        let path = t.path().join("state.sqlite");
+        let db = Database::open(&path).unwrap();
+        db.set_language("en").unwrap();
+        db.connection
+            .execute_batch(
+                "DROP TABLE notification_settings; DELETE FROM schema_migrations WHERE version=13;",
+            )
+            .unwrap();
+        drop(db);
+        let upgraded = Database::open(&path).unwrap();
+        assert_eq!(upgraded.schema_version().unwrap(), 13);
+        assert_eq!(upgraded.language().unwrap(), "en");
+        assert_eq!(
+            upgraded
+                .connection
+                .query_row(
+                    "SELECT profile_json FROM notification_settings WHERE singleton=1",
+                    [],
+                    |r| r.get::<_, String>(0)
+                )
+                .unwrap(),
+            "{}"
+        );
+    }
+
+    #[test]
     fn refuses_future_schema_without_resetting_it() {
         let db = Database::initialize(Connection::open_in_memory().unwrap()).unwrap();
         db.connection
-            .execute("INSERT INTO schema_migrations VALUES(11,1)", [])
+            .execute("INSERT INTO schema_migrations VALUES(14,1)", [])
             .unwrap();
         assert!(matches!(
             Database::initialize(db.connection),
-            Err(DatabaseError::UnsupportedVersion(11))
+            Err(DatabaseError::UnsupportedVersion(14))
         ));
     }
 

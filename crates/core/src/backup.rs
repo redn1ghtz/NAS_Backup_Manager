@@ -28,7 +28,11 @@ impl From<std::io::Error> for Failure {
     fn from(e: std::io::Error) -> Self {
         Failure {
             code: "filesystem".into(),
-            detail: format!("{:?}", e.kind()),
+            detail: if crate::advanced::transient(&e) {
+                format!("transient:{:?}", e.kind())
+            } else {
+                format!("{:?}", e.kind())
+            },
         }
     }
 }
@@ -57,6 +61,10 @@ pub struct JobDraft {
     pub schedule_every: u32,
     pub daily_minute: u16,
     pub missed_run: String,
+    #[serde(default)]
+    pub advanced: crate::advanced::Options,
+    #[serde(default, skip_serializing)]
+    pub secrets: Option<crate::advanced::Secrets>,
 }
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -86,6 +94,7 @@ pub struct SavedJob {
     pub last_result: Option<String>,
     pub last_run: Option<i64>,
     pub last_error: Option<String>,
+    pub advanced: crate::advanced::Options,
 }
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -109,6 +118,7 @@ pub struct ArchiveEntry {
     pub expires_at: i64,
     pub bytes: i64,
     pub reason: String,
+    pub encrypted: bool,
 }
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -248,7 +258,7 @@ fn checked(path: &Path) -> Result<fs::Metadata> {
     }
     Ok(fs::metadata(path)?)
 }
-fn directory(path: &Path) -> Result<PathBuf> {
+pub(crate) fn directory(path: &Path) -> Result<PathBuf> {
     if !path.is_absolute()
         || path
             .components()
@@ -282,7 +292,7 @@ fn directory(path: &Path) -> Result<PathBuf> {
     }
     Ok(canonical)
 }
-fn root(job: &SavedJob) -> PathBuf {
+pub(crate) fn root(job: &SavedJob) -> PathBuf {
     let base = Path::new(&job.destination).join(".nas-backup-manager");
     if job.destination_layout == "direct" {
         base
@@ -290,14 +300,14 @@ fn root(job: &SavedJob) -> PathBuf {
         base.join(&job.id)
     }
 }
-fn current(job: &SavedJob) -> PathBuf {
+pub(crate) fn current(job: &SavedJob) -> PathBuf {
     if job.destination_layout == "direct" {
         PathBuf::from(&job.destination)
     } else {
         root(job).join("current")
     }
 }
-fn safe_join(base: &Path, relative: &str) -> Result<PathBuf> {
+pub(crate) fn safe_join(base: &Path, relative: &str) -> Result<PathBuf> {
     validate_relative_path(Path::new(relative)).map_err(|_| fail("unsafe_relative_path"))?;
     let path = base.join(relative);
     // All existing ancestors must be real directories. A missing leaf is allowed.
@@ -400,7 +410,11 @@ fn lock(job: &SavedJob) -> Result<File> {
 fn verify(db: &Connection, job: &SavedJob) -> Result<()> {
     verify_resources(db, job, true)
 }
-fn verify_resources(db: &Connection, job: &SavedJob, source_required: bool) -> Result<()> {
+pub(crate) fn verify_resources(
+    db: &Connection,
+    job: &SavedJob,
+    source_required: bool,
+) -> Result<()> {
     let (dest, nonce, src, mirror, archive): (String,String,String,String,String) = db.prepare_cached(
         "SELECT j.expected_identity,j.ownership_nonce,r.source_identity,r.current_identity,r.archive_identity FROM jobs j JOIN job_runtime r ON j.id=r.job_id WHERE j.id=?1")?.query_row([&job.id], |r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?)))?;
     if source_required {
@@ -424,7 +438,7 @@ fn verify_resources(db: &Connection, job: &SavedJob, source_required: bool) -> R
     }
     Ok(())
 }
-const JOB_SELECT: &str = "SELECT j.id,j.revision,j.name,j.source_path,j.destination_path,j.destination_kind,j.retention_days,j.daily_minute,j.missed_run_policy,j.enabled,j.schedule_enabled,(SELECT state FROM runs WHERE job_id=j.id AND trigger_kind!='preview' ORDER BY started_at DESC,rowid DESC LIMIT 1),(SELECT started_at FROM runs WHERE job_id=j.id AND trigger_kind!='preview' ORDER BY started_at DESC,rowid DESC LIMIT 1),j.archive_mode,CASE WHEN j.schedule_on_login=1 THEN 'startup' ELSE j.schedule_kind END,j.schedule_every,j.schedule_anchor,j.destination_layout,j.deletion_guard_enabled,j.deletion_guard_min_files,j.wake_computer,j.schedule_automatic,j.schedule_pending,(SELECT error_code FROM runs WHERE job_id=j.id AND trigger_kind!='preview' ORDER BY started_at DESC,rowid DESC LIMIT 1) FROM jobs j";
+const JOB_SELECT: &str = "SELECT j.id,j.revision,j.name,j.source_path,j.destination_path,j.destination_kind,j.retention_days,j.daily_minute,j.missed_run_policy,j.enabled,j.schedule_enabled,(SELECT state FROM runs WHERE job_id=j.id AND trigger_kind!='preview' ORDER BY started_at DESC,rowid DESC LIMIT 1),(SELECT started_at FROM runs WHERE job_id=j.id AND trigger_kind!='preview' ORDER BY started_at DESC,rowid DESC LIMIT 1),j.archive_mode,CASE WHEN j.schedule_on_login=1 THEN 'startup' ELSE j.schedule_kind END,j.schedule_every,j.schedule_anchor,j.destination_layout,j.deletion_guard_enabled,j.deletion_guard_min_files,j.wake_computer,j.schedule_automatic,j.schedule_pending,(SELECT error_code FROM runs WHERE job_id=j.id AND trigger_kind!='preview' ORDER BY started_at DESC,rowid DESC LIMIT 1),j.advanced_json FROM jobs j";
 fn job_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<SavedJob> {
     let mut j = SavedJob {
         id: r.get(0)?,
@@ -442,6 +456,8 @@ fn job_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<SavedJob> {
         last_result: r.get(11)?,
         last_run: r.get(12)?,
         last_error: r.get(23)?,
+        advanced: serde_json::from_str(&r.get::<_, String>(24)?)
+            .map_err(|_| rusqlite::Error::InvalidQuery)?,
         archive_mode: r.get(13)?,
         schedule_kind: r.get(14)?,
         schedule_every: r.get(15)?,
@@ -511,6 +527,8 @@ pub fn save_job(db: &Connection, mut draft: JobDraft) -> Result<SavedJob> {
     if !draft.schedule_automatic || draft.schedule_kind == "startup" {
         draft.wake_computer = false;
     }
+    crate::advanced::validate(&draft.advanced)?;
+    crate::advanced::check_remote_isolation(db, draft.id.as_deref(), &draft.advanced)?;
     connect_destination(&draft.destination, &draft.kind)?;
     let source = directory(Path::new(&draft.source))?;
     let destination = directory(Path::new(&draft.destination))?;
@@ -552,16 +570,47 @@ pub fn save_job(db: &Connection, mut draft: JobDraft) -> Result<SavedJob> {
         {
             return Err(fail("paths_immutable"));
         }
+        if job.advanced.encryption_recipient.is_empty()
+            && !draft.advanced.encryption_recipient.is_empty()
+        {
+            let legacy: i64 = transaction.query_row(
+                "SELECT count(*) FROM archive_versions WHERE job_id=?1 AND state='verified'",
+                [&job.id],
+                |r| r.get(0),
+            )?;
+            if legacy > 0 {
+                return Err(fail("encryption_legacy_archive"));
+            }
+        }
         if job.schedule_enabled {
             return Err(fail("disable_schedule_first"));
         }
         transaction.execute("UPDATE jobs SET name=?2,retention_days=?3,daily_minute=?4,missed_run_policy=?5,enabled=0,schedule_enabled=0,approved_revision=NULL,revision=revision+1,updated_at=?6,archive_mode=?7,schedule_kind=CASE WHEN ?8='startup' THEN 'daily' ELSE ?8 END,schedule_on_login=(?8='startup'),schedule_every=?9,schedule_anchor=?10,deletion_guard_enabled=?11,deletion_guard_min_files=?12,wake_computer=?13,schedule_automatic=?14,schedule_pending=?14 WHERE id=?1",params![existing,draft.name.trim(),draft.retention_days,draft.daily_minute,draft.missed_run,now(),draft.archive_mode,draft.schedule_kind,draft.schedule_every,chrono::Local::now().format("%Y-%m-%d").to_string(),draft.deletion_guard_enabled,draft.deletion_guard_min_files,draft.wake_computer,draft.schedule_automatic])?;
+        crate::advanced::save_secrets(
+            &transaction,
+            &mut draft.advanced,
+            Some(&job.advanced),
+            draft.secrets.as_ref(),
+        )?;
+        transaction.execute(
+            "UPDATE jobs SET advanced_json=?2 WHERE id=?1",
+            params![
+                existing,
+                serde_json::to_string(&draft.advanced).map_err(|_| fail("serialization"))?
+            ],
+        )?;
         transaction.commit()?;
         return get_job(db, existing);
     }
     if fs::read_dir(&destination)?.next().transpose()?.is_some() {
         return Err(fail("destination_not_empty"));
     }
+    crate::advanced::save_secrets(
+        &transaction,
+        &mut draft.advanced,
+        None,
+        draft.secrets.as_ref(),
+    )?;
     let job_id = id();
     let nonce = id();
     let job = SavedJob {
@@ -590,6 +639,7 @@ pub fn save_job(db: &Connection, mut draft: JobDraft) -> Result<SavedJob> {
         last_run: None,
         last_error: None,
         destination_layout: "direct".into(),
+        advanced: draft.advanced,
     };
     fs::create_dir(root(&job))?;
     for sub in ["archive", "staging"] {
@@ -608,6 +658,13 @@ pub fn save_job(db: &Connection, mut draft: JobDraft) -> Result<SavedJob> {
         .sync_all()?;
     transaction.execute("INSERT INTO jobs(id,name,source_path,destination_path,destination_kind,expected_identity,ownership_nonce,retention_days,daily_minute,missed_run_policy,created_at,updated_at,archive_mode,schedule_kind,schedule_every,schedule_anchor,destination_layout,deletion_guard_enabled,deletion_guard_min_files,wake_computer,schedule_automatic,schedule_pending,schedule_on_login) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?11,?12,CASE WHEN ?13='startup' THEN 'daily' ELSE ?13 END,?14,?15,?16,?17,?18,?19,?20,?20,(?13='startup'))",params![job.id,job.name,job.source,job.destination,job.kind,destination_stamp,nonce,job.retention_days,job.daily_minute,job.missed_run,now(),job.archive_mode,job.schedule_kind,job.schedule_every,job.schedule_anchor,job.destination_layout,job.deletion_guard_enabled,job.deletion_guard_min_files,job.wake_computer,job.schedule_automatic])?;
     transaction.execute(
+        "UPDATE jobs SET advanced_json=?2 WHERE id=?1",
+        params![
+            job.id,
+            serde_json::to_string(&job.advanced).map_err(|_| fail("serialization"))?
+        ],
+    )?;
+    transaction.execute(
         "INSERT INTO job_runtime VALUES(?1,?2,?3,?4)",
         params![
             job.id,
@@ -619,7 +676,7 @@ pub fn save_job(db: &Connection, mut draft: JobDraft) -> Result<SavedJob> {
     transaction.commit()?;
     get_job(db, &job_id)
 }
-fn fingerprint_meta(m: &fs::Metadata) -> Result<String> {
+pub(crate) fn fingerprint_meta(m: &fs::Metadata) -> Result<String> {
     Ok(format!(
         "{:?}",
         m.modified()?
@@ -744,7 +801,7 @@ fn create_plan_checked(
         if conflicts > 0 {
             return Err(fail("path_type_conflict"));
         }
-        tx.execute("INSERT INTO operations(run_id,sequence,relative_path,kind,state,byte_count) SELECT ?1,row_number() OVER(ORDER BY path),path,kind,'planned',bytes FROM (SELECT s.path,s.bytes,CASE WHEN s.is_dir=1 THEN 'mkdir' WHEN d.path IS NULL THEN 'create' WHEN s.bytes=d.bytes AND s.modified=d.modified THEN 'unchanged' ELSE 'update' END kind FROM scan_entries s LEFT JOIN scan_entries d ON d.run_id=s.run_id AND d.path=s.path AND d.side=1 WHERE s.run_id=?1 AND s.side=0 UNION ALL SELECT d.path,d.bytes,'archive_remove' FROM scan_entries d LEFT JOIN scan_entries s ON s.run_id=d.run_id AND s.path=d.path AND s.side=0 WHERE d.run_id=?1 AND d.side=1 AND d.is_dir=0 AND s.path IS NULL)",[&run])?;
+        tx.execute("INSERT INTO operations(run_id,sequence,relative_path,kind,state,byte_count) SELECT ?1,row_number() OVER(ORDER BY path),path,kind,'planned',bytes FROM (SELECT s.path,s.bytes,CASE WHEN s.is_dir=1 THEN 'mkdir' WHEN d.path IS NULL THEN 'create' WHEN ((?3='' AND s.bytes=d.bytes AND s.modified=d.modified AND NOT EXISTS(SELECT 1 FROM file_integrity f WHERE f.job_id=?2 AND f.path=s.path AND f.codec!='')) OR EXISTS(SELECT 1 FROM file_integrity f WHERE f.job_id=?2 AND f.path=s.path AND f.source_bytes=s.bytes AND f.source_modified=s.modified AND f.stored_bytes=d.bytes AND f.stored_modified=d.modified AND f.codec=?3)) THEN 'unchanged' ELSE 'update' END kind FROM scan_entries s LEFT JOIN scan_entries d ON d.run_id=s.run_id AND d.path=s.path AND d.side=1 WHERE s.run_id=?1 AND s.side=0 UNION ALL SELECT d.path,d.bytes,'archive_remove' FROM scan_entries d LEFT JOIN scan_entries s ON s.run_id=d.run_id AND s.path=d.path AND s.side=0 WHERE d.run_id=?1 AND d.side=1 AND d.is_dir=0 AND s.path IS NULL)",params![run,job.id,job.advanced.encryption_recipient])?;
         let mut hasher = Sha256::new();
         let mut stmt=tx.prepare("SELECT side,path,is_dir,bytes,modified,identity FROM scan_entries WHERE run_id=?1 ORDER BY side,path")?;
         let mut rows = stmt.query([&run])?;
@@ -899,6 +956,7 @@ fn archive_file(
     run: &str,
     relative: &str,
     reason: &str,
+    allow_external_edit: bool,
 ) -> Result<()> {
     verify_resources(db, job, false)?;
     let source = safe_join(&current(job), relative)?;
@@ -912,11 +970,66 @@ fn archive_file(
         .checked_add(i64::from(job.retention_days) * 86400)
         .ok_or_else(|| fail("invalid_retention"))?;
     db.execute("INSERT INTO archive_versions(id,job_id,run_id,original_relative_path,stored_relative_path,reason,archived_at,expires_at,byte_count,state) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,'pending')",params![version,job.id,run,relative,stored,reason,archived,expires,i64::try_from(fs::metadata(&source)?.len()).map_err(|_|fail("file_too_large"))?])?;
-    match copy_verified(&source, &folder.join("payload")) {
+    let old_codec: Option<String> = db
+        .query_row(
+            "SELECT codec FROM file_integrity WHERE job_id=?1 AND path=?2",
+            params![job.id, relative],
+            |r| r.get(0),
+        )
+        .optional()?;
+    let expected_hash: Option<String> = if allow_external_edit {
+        None
+    } else {
+        db.query_row(
+            "SELECT sha256 FROM file_integrity WHERE job_id=?1 AND path=?2",
+            params![job.id, relative],
+            |r| r.get(0),
+        )
+        .optional()?
+    };
+    let converting = !job.advanced.encryption_recipient.is_empty()
+        && (old_codec.as_deref().unwrap_or("").is_empty() || allow_external_edit);
+    if converting {
+        if let Some(expected) = &expected_hash {
+            if digest(&source)? != *expected {
+                return Err(fail("integrity_failed"));
+            }
+        }
+    }
+    let copied = if converting {
+        crate::advanced::encrypt(
+            &source,
+            &folder.join("payload"),
+            &job.advanced,
+            &mut |_, _, _| Ok(()),
+        )
+    } else {
+        crate::advanced::copy_resume(
+            &source,
+            &folder.join("payload"),
+            &job.advanced,
+            &mut |_, _, _| Ok(()),
+        )
+    };
+    match copied.and_then(|hash| {
+        if !converting && expected_hash.is_some_and(|expected| expected != hash) {
+            Err(fail("integrity_failed"))
+        } else {
+            Ok(hash)
+        }
+    }) {
         Ok(hash) => {
             db.execute(
-                "UPDATE archive_versions SET state='verified',content_hash=?2 WHERE id=?1",
-                params![version, hash],
+                "UPDATE archive_versions SET state='verified',content_hash=?2,codec=?3 WHERE id=?1",
+                params![
+                    version,
+                    hash,
+                    if converting {
+                        job.advanced.encryption_recipient.as_str()
+                    } else {
+                        old_codec.as_deref().unwrap_or("")
+                    }
+                ],
             )?;
             Ok(())
         }
@@ -1051,8 +1164,15 @@ fn execute_with_activity(
     crate::activity::report(db, &snapshot)?;
     progress(snapshot.clone());
     let mut staging_file: Option<PathBuf> = None;
+    let mut integrity_pending: Vec<(String, crate::advanced::FileRecord)> = Vec::new();
     let outcome = (|| -> Result<()> {
         cancellation.check_now()?;
+        if crate::advanced::verify_due(db, &job)? {
+            snapshot.phase = "integrity".into();
+            crate::activity::report(db, &snapshot)?;
+            progress(snapshot.clone());
+            crate::advanced::verify_existing(db, &job, &mut || cancellation.check())?;
+        }
         let mut statement = db.prepare(
             "SELECT sequence,relative_path,kind FROM operations WHERE run_id=?1 ORDER BY sequence",
         )?;
@@ -1065,7 +1185,9 @@ fn execute_with_activity(
             if kind == "unchanged" {
                 continue;
             }
-            verify(db, &job)?;
+            crate::advanced::retry_operation(&job.advanced, &mut || verify(db, &job), &mut || {
+                cancellation.check()
+            })?;
             let destination = safe_join(&current(&job), &relative)?;
             if kind == "mkdir" {
                 if !destination.exists() {
@@ -1089,26 +1211,33 @@ fn execute_with_activity(
                 let source = safe_join(Path::new(&job.source), &relative)?;
                 let file_bytes = i64::try_from(fs::metadata(&source)?.len())
                     .map_err(|_| fail("file_too_large"))?;
-                copy_verified_progress(&source, &temp, |bytes, verified, phase| {
+                let mut report_copy = |bytes, verified, phase: &str| {
                     if staging_file.is_none() {
                         staging_file = Some(temp.clone());
                     }
                     cancellation.check()?;
-                    let mut update = snapshot.clone();
-                    update.copied_bytes = snapshot.copied_bytes + bytes;
-                    update.verified_bytes = snapshot.verified_bytes + verified;
-                    update.phase = phase.into();
-                    update.eta_seconds = timing.estimate(&update);
                     if last_event.elapsed() >= std::time::Duration::from_millis(500)
                         || (file_bytes >= 8 * 1024 * 1024 && snapshot.phase != phase)
                     {
+                        // Only allocate strings/sample timing when an update is due.
+                        // Cancellation is still checked for every streamed block.
+                        let mut update = snapshot.clone();
+                        update.copied_bytes = snapshot.copied_bytes + bytes;
+                        update.verified_bytes = snapshot.verified_bytes + verified;
+                        update.phase = phase.into();
+                        update.eta_seconds = timing.estimate(&update);
                         crate::activity::report(db, &update)?;
                         snapshot.phase = phase.into();
                         progress(update);
                         last_event = std::time::Instant::now();
                     }
                     Ok(())
-                })?;
+                };
+                let checksum = if job.advanced.encryption_recipient.is_empty() {
+                    crate::advanced::copy_resume(&source, &temp, &job.advanced, &mut report_copy)?
+                } else {
+                    crate::advanced::encrypt(&source, &temp, &job.advanced, &mut report_copy)?
+                };
                 snapshot.copied_bytes += file_bytes;
                 snapshot.verified_bytes += file_bytes;
                 cancellation.check_now()?;
@@ -1119,28 +1248,54 @@ fn execute_with_activity(
                     )?;
                 }
                 if kind == "update" && job.archive_mode == "days" {
-                    archive_file(db, &job, &plan.id, &relative, "replaced")?;
+                    archive_file(db, &job, &plan.id, &relative, "replaced", false)?;
                 }
                 cancellation.check_now()?;
-                verify(db, &job)?;
+                crate::advanced::retry_operation(
+                    &job.advanced,
+                    &mut || verify(db, &job),
+                    &mut || cancellation.check(),
+                )?;
                 revalidate_entry(db, &plan.id, 1, &current(&job), &relative)?;
                 if let Some(parent) = destination.parent() {
                     checked(parent)?;
                 }
                 fs::rename(&temp, &destination)?;
                 staging_file = None;
+                let record = crate::advanced::capture_record(
+                    db,
+                    &job,
+                    &plan.id,
+                    &relative,
+                    &destination,
+                    &checksum,
+                )?;
+                integrity_pending.push((relative.clone(), record));
+                if integrity_pending.len() >= 128
+                    || last_event.elapsed() >= std::time::Duration::from_millis(500)
+                {
+                    crate::advanced::flush_records(db, &job, &mut integrity_pending)?;
+                }
             } else {
                 if job.archive_mode == "days" {
-                    archive_file(db, &job, &plan.id, &relative, "deleted")?;
+                    archive_file(db, &job, &plan.id, &relative, "deleted", false)?;
                 }
                 cancellation.check_now()?;
-                verify(db, &job)?;
+                crate::advanced::retry_operation(
+                    &job.advanced,
+                    &mut || verify(db, &job),
+                    &mut || cancellation.check(),
+                )?;
                 revalidate_entry(db, &plan.id, 1, &current(&job), &relative)?;
                 // Recheck source absence immediately before mirroring deletion.
                 if !absent(&safe_join(Path::new(&job.source), &relative)?)? {
                     return Err(fail("stale_preview"));
                 }
                 fs::remove_file(&destination)?;
+                db.execute(
+                    "DELETE FROM file_integrity WHERE job_id=?1 AND path=?2",
+                    params![job.id, relative],
+                )?;
             }
             if kind != "create" {
                 db.execute(
@@ -1165,7 +1320,9 @@ fn execute_with_activity(
         let mut rows = dirs.query([&plan.id])?;
         while let Some(row) = rows.next()? {
             cancellation.check_now()?;
-            verify(db, &job)?;
+            crate::advanced::retry_operation(&job.advanced, &mut || verify(db, &job), &mut || {
+                cancellation.check()
+            })?;
             let relative: String = row.get(0)?;
             let expected: String = row.get(1)?;
             let path = safe_join(&current(&job), &relative)?;
@@ -1176,8 +1333,40 @@ fn execute_with_activity(
             }
             fs::remove_dir(path)?;
         }
+        crate::advanced::flush_records(db, &job, &mut integrity_pending)?;
+        if job.advanced.cloud_mode != "off" {
+            snapshot.phase = "cloud".into();
+            snapshot.copied_bytes = 0;
+            snapshot.verified_bytes = 0;
+            snapshot.total_bytes = 0;
+            snapshot.completed = 0;
+            snapshot.total = 0;
+            snapshot.current_path = None;
+            snapshot.eta_seconds = None;
+            crate::activity::report(db, &snapshot)?;
+            progress(snapshot.clone());
+            crate::remote::replicate(
+                db,
+                &job,
+                &mut || cancellation.check(),
+                &mut |phase, transfer| {
+                    snapshot.phase = phase.into();
+                    snapshot.copied_bytes = transfer.bytes;
+                    snapshot.total_bytes = transfer.total_bytes;
+                    snapshot.completed = transfer.completed;
+                    snapshot.total = transfer.total;
+                    snapshot.current_path = transfer.current_path;
+                    snapshot.eta_seconds = transfer.eta_seconds;
+                    crate::activity::report(db, &snapshot)?;
+                    progress(snapshot.clone());
+                    Ok(())
+                },
+            )?;
+            db.execute("DELETE FROM cloud_capacity WHERE job_id=?1", [&job.id])?;
+        }
         Ok(())
     })();
+    crate::advanced::flush_records(db, &job, &mut integrity_pending)?;
     if outcome.as_ref().is_err_and(|e| e.code == "cancelled") {
         if let Some(path) = staging_file {
             // Only this run's create_new staging file; never the current mirror or archive.
@@ -1224,9 +1413,40 @@ fn execute_with_activity(
     progress(snapshot);
     Ok(plan)
 }
+pub fn verify_integrity(db: &Connection, job_id: &str) -> Result<crate::advanced::IntegrityReport> {
+    let job = get_job(db, job_id)?;
+    let _activity = crate::activity::begin(db, job_id)?;
+    let _lock = lock(&job)?;
+    verify_resources(db, &job, false)?;
+    let mut cancel = crate::activity::Cancellation::for_job(db, job_id)?;
+    crate::advanced::verify_existing(db, &job, &mut || cancel.check())
+}
+pub fn decrypt_file(db: &Connection, job_id: &str, relative: &str, directory: &Path) -> Result<()> {
+    let job = get_job(db, job_id)?;
+    let _lock = lock(&job)?;
+    verify_resources(db, &job, false)?;
+    crate::remote::decrypt_file(db, &job, relative, directory)
+}
+pub fn decrypt_archive(db: &Connection, version: &str, directory: &Path) -> Result<()> {
+    JobId::parse(version).map_err(|_| fail("invalid_path"))?;
+    let (job_id,relative,stored,codec):(String,String,String,String)=db.query_row("SELECT job_id,original_relative_path,stored_relative_path,codec FROM archive_versions WHERE id=?1 AND state='verified'",[version],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?)))?;
+    if codec.is_empty() {
+        return Err(fail("not_encrypted"));
+    }
+    let job = get_any_job(db, &job_id)?;
+    let _lock = lock(&job)?;
+    verify_resources(db, &job, false)?;
+    crate::remote::decrypt_source(
+        db,
+        &job,
+        &safe_join(&root(&job).join("archive"), &stored)?,
+        &relative,
+        directory,
+    )
+}
 pub fn list_archive(db: &Connection, job_id: &str, offset: i64) -> Result<Vec<ArchiveEntry>> {
     get_any_job(db, job_id)?;
-    let mut stmt=db.prepare("SELECT id,original_relative_path,archived_at,expires_at,byte_count,reason FROM archive_versions WHERE job_id=?1 AND state='verified' ORDER BY archived_at DESC,rowid DESC LIMIT 50 OFFSET ?2")?;
+    let mut stmt=db.prepare("SELECT id,original_relative_path,archived_at,expires_at,byte_count,reason,(codec!='') FROM archive_versions WHERE job_id=?1 AND state='verified' ORDER BY archived_at DESC,rowid DESC LIMIT 50 OFFSET ?2")?;
     let result = Ok(stmt
         .query_map(params![job_id, offset], |r| {
             Ok(ArchiveEntry {
@@ -1236,6 +1456,7 @@ pub fn list_archive(db: &Connection, job_id: &str, offset: i64) -> Result<Vec<Ar
                 expires_at: r.get(3)?,
                 bytes: r.get(4)?,
                 reason: r.get(5)?,
+                encrypted: r.get(6)?,
             })
         })?
         .collect::<std::result::Result<_, _>>()?);
@@ -1258,7 +1479,7 @@ fn collision_token(path: &Path) -> Result<String> {
     ))
 }
 pub fn restore_confirmed(db: &Connection, version: &str, expected: Option<&str>) -> Result<()> {
-    let (job_id,relative,stored,checksum,original_run):(String,String,String,String,String)=db.query_row("SELECT job_id,original_relative_path,stored_relative_path,content_hash,run_id FROM archive_versions WHERE id=?1 AND state='verified'",[version],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?)))?;
+    let (job_id,relative,stored,checksum,original_run,codec):(String,String,String,String,String,String)=db.query_row("SELECT job_id,original_relative_path,stored_relative_path,content_hash,run_id,codec FROM archive_versions WHERE id=?1 AND state='verified'",[version],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?,r.get(5)?)))?;
     let job = get_any_job(db, &job_id)?;
     let _lock = lock(&job)?;
     verify_resources(db, &job, false)?;
@@ -1297,7 +1518,7 @@ pub fn restore_confirmed(db: &Connection, version: &str, expected: Option<&str>)
     copy_verified(&source, &temp)?;
     verify_resources(db, &job, false)?;
     if let Some(token) = collision {
-        archive_file(db, &job, &original_run, &relative, "replaced")?;
+        archive_file(db, &job, &original_run, &relative, "replaced", true)?;
         if collision_token(&destination)? != token {
             return Err(fail("stale_preview"));
         }
@@ -1312,6 +1533,8 @@ pub fn restore_confirmed(db: &Connection, version: &str, expected: Option<&str>)
         }
         fs::remove_file(temp)?;
     }
+    let metadata = fs::metadata(&destination)?;
+    db.execute("INSERT INTO file_integrity(job_id,path,source_bytes,source_modified,stored_bytes,stored_modified,sha256,verified_at,codec) VALUES(?1,?2,0,'restored',?4,?5,?3,?6,?7) ON CONFLICT(job_id,path) DO UPDATE SET sha256=excluded.sha256,source_modified='restored',stored_bytes=excluded.stored_bytes,stored_modified=excluded.stored_modified,verified_at=excluded.verified_at,codec=excluded.codec",params![job.id,relative,checksum,metadata.len()as i64,fingerprint_meta(&metadata)?,now(),codec])?;
     db.execute(
         "INSERT INTO audit_events(id,job_id,kind,happened_at) VALUES(?1,?2,'restore',?3)",
         params![id(), job_id, now()],

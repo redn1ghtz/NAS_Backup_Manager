@@ -4,3 +4,9 @@ pub mod model;
 pub mod ports;
 
 pub mod activity;
+
+pub mod advanced;
+pub mod cloud_setup;
+pub mod remote;
+
+pub mod notification_settings;

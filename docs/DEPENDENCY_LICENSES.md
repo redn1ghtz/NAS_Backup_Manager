@@ -1,4 +1,4 @@
-# Dependency license snapshot — 0.1.0-alpha
+# Dependency license snapshot — 0.2.0-alpha
 
 517 package/version records; 436 have locally available notice files.
 Declared license metadata is copied verbatim from Cargo metadata/package-lock.json.
@@ -130,11 +130,11 @@ reference/QA screenshots and generated graph; build icons remain included.
 | rust | miniz_oxide | 0.9.1 | MIT OR Zlib OR Apache-2.0 | 4 |
 | rust | mio | 1.2.4 | MIT | 1 |
 | rust | muda | 0.20.0 | Apache-2.0 OR MIT | 3 |
-| rust | nas-backup-cli | 0.1.0-alpha | MIT | 1 |
-| rust | nas-backup-core | 0.1.0-alpha | MIT | 1 |
-| rust | nas-backup-desktop | 0.1.0-alpha | MIT | 1 |
-| rust | nas-backup-scheduler | 0.1.0-alpha | MIT | 1 |
-| rust | nas-backup-storage | 0.1.0-alpha | MIT | 1 |
+| rust | nas-backup-cli | 0.2.0-alpha | MIT | 1 |
+| rust | nas-backup-core | 0.2.0-alpha | MIT | 1 |
+| rust | nas-backup-desktop | 0.2.0-alpha | MIT | 1 |
+| rust | nas-backup-scheduler | 0.2.0-alpha | MIT | 1 |
+| rust | nas-backup-storage | 0.2.0-alpha | MIT | 1 |
 | rust | new_debug_unreachable | 1.0.6 | MIT | 1 |
 | rust | num-conv | 0.2.2 | MIT OR Apache-2.0 | 2 |
 | rust | num-traits | 0.2.19 | MIT OR Apache-2.0 | 2 |

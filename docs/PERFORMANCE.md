@@ -1,4 +1,41 @@
-# Performance observations — 2026-10-20
+# Performance observations
+
+## 0.2.0-alpha release check — 2026-10-24
+
+The streaming callback now constructs/clones Progress (including path strings) and
+samples ETA only when an actual UI update is due, rather than once per 256 KiB
+read/write callback. Cancellation still runs per callback and retains its existing
+250 ms local-marker check. Copy/readback, verification, identity checks, archive
+ordering and the 500 ms progress cadence are preserved. No transfer cap, worker
+service, concurrency limit or background scan was added.
+
+Same Windows 10 x64 host described below; x86 under WOW64. Tests ran sequentially
+on local disposable folders, not NAS/cloud. Each fixture has 10,000 20-byte files
+(200,000 payload bytes); initial backup includes previews/scans and verified copy.
+These are current baselines, not a controlled before/after speed comparison.
+
+| Observation | x64 | x86 |
+|---|---:|---:|
+| Fixture creation, s | 2.463 | 2.559 |
+| Initial backup, s | 101.232 | 111.082 |
+| Unchanged preview, s | 5.390 | 6.437 |
+| Test-process peak working set, MiB | 32.61 | 29.58 |
+| Test-process CPU time, s | 83.250 | 93.641 |
+
+CPU/peak memory include fixture setup and previews. Both tests passed; unchanged
+files were skipped. Raw evidence: `qa/perf-0.2.0-x64.txt` and `...-x86.txt`.
+No claim is made for unmeasured network throughput or production cloud accounts.
+The earlier provisional <40 MiB engine working-set budget is met on this fixture.
+
+Visible idle GUI measured with `scripts/measure-idle.ps1 -Architecture x64 -Label
+release020 -TestBuild` (and x86): 5 s warmup, then ~8 s, 7 GUI/WebView processes.
+x64: 15.625 ms CPU (0.189% of one core), 182.18 MiB peak private commit;
+x86: CPU below the timer resolution (0 ms sampled), 178.47 MiB private commit.
+Summed working sets: 330.91/315.20 MiB (shared pages may be counted more than once).
+Both meet the earlier short-sample idle budgets. This is not a claim of literally
+zero CPU or a long-term measurement. Evidence: `qa/perf-idle-*-release020.json`.
+
+## Earlier observations — 2026-10-20
 
 Host: Windows 10 19045 x64, Intel CC150 3.50 GHz, 16 logical cores, 15.92 GiB RAM.
 x86 runs under WOW64, not a native 32-bit OS. Tests use local disposable TEMP /

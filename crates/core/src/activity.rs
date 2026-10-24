@@ -269,6 +269,8 @@ impl Cancellation {
 
 /// Native presentation is best-effort and cannot change backup success or safety.
 pub struct Feedback<'a> {
+    run: Option<String>,
+    started: i64,
     db: &'a Connection,
     job: String,
     name: String,
@@ -280,6 +282,8 @@ pub struct Feedback<'a> {
 impl<'a> Feedback<'a> {
     pub fn new(db: &'a Connection, job: &crate::backup::SavedJob, state: &Path) -> Self {
         Self {
+            run: None,
+            started: now(),
             db,
             job: job.id.clone(),
             name: job.name.clone(),
@@ -314,6 +318,9 @@ impl<'a> Feedback<'a> {
         }
     }
     pub fn progress(&mut self, p: &Progress) {
+        if !p.run_id.is_empty() {
+            self.run = Some(p.run_id.clone());
+        }
         self.start();
         if let Some(host) = self.host.as_mut() {
             host.progress(
@@ -323,7 +330,11 @@ impl<'a> Feedback<'a> {
                     p.completed
                 },
                 if p.total_bytes > 0 {
-                    p.total_bytes.saturating_mul(2)
+                    if ["cloud", "cloudArchive"].contains(&p.phase.as_str()) {
+                        p.total_bytes
+                    } else {
+                        p.total_bytes.saturating_mul(2)
+                    }
                 } else {
                     p.total
                 },
@@ -353,6 +364,15 @@ impl<'a> Feedback<'a> {
                 host.set_notifications(enabled);
             }
             self.failed |= host.finish(outcome).is_err();
+        }
+        if let Ok(job) = crate::backup::get_job(self.db, &self.job) {
+            crate::remote::report_notifications(
+                self.db,
+                &job,
+                error.map(|e| e.code.as_str()).unwrap_or("succeeded"),
+                self.run.as_deref(),
+                self.started,
+            );
         }
         if self.failed {
             let _=self.db.execute("INSERT INTO audit_events(id,job_id,kind,happened_at,state,error_code) VALUES(?1,?2,'notification',?3,'failed','notification_unavailable')",params![uuid::Uuid::new_v4().to_string(),self.job,now()]);

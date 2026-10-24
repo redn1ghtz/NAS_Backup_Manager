@@ -2,7 +2,7 @@
 #if Ver < EncodeVer(7, 0, 0)
   #error Inno Setup 7 or newer is required.
 #endif
-#define AppVersion "0.1.0-alpha"
+#define AppVersion "0.2.0-alpha"
 #ifndef ReleaseRoot
   #define ReleaseRoot AddBackslash(SourcePath) + "..\..\releases\" + AppVersion
 #endif
@@ -36,14 +36,19 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesAllowed=x86compatible
 #endif
 MinVersion=10.0
-VersionInfoVersion=0.1.0.0
-VersionInfoProductVersion=0.1.0.0
+VersionInfoVersion=0.2.0.0
+VersionInfoProductVersion=0.2.0.0
 VersionInfoProductTextVersion={#AppVersion}
 VersionInfoTextVersion={#AppVersion}
 OutputDir={#ReleaseRoot}\installers
 OutputBaseFilename=NAS-Backup-Manager-{#AppVersion}-setup-{#TargetArchitecture}
+#ifdef QAId
+Compression=none
+SolidCompression=no
+#else
 Compression=lzma2
 SolidCompression=yes
+#endif
 WizardStyle=modern
 ShowLanguageDialog=yes
 LicenseFile={#Payload}\LICENSE
@@ -77,6 +82,14 @@ Source: "{#Payload}\nas-backup-notify.exe"; DestDir: "{app}"; Flags: ignoreversi
 Source: "{#Payload}\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#Payload}\THIRD_PARTY_NOTICES.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#Payload}\USER_GUIDE.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#Payload}\ADVANCED.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#Payload}\TOOL_SOURCES.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#Payload}\tools\age.exe"; DestDir: "{app}\tools"; Flags: ignoreversion
+Source: "{#Payload}\tools\age-keygen.exe"; DestDir: "{app}\tools"; Flags: ignoreversion
+Source: "{#Payload}\tools\rclone.exe"; DestDir: "{app}\tools"; Flags: ignoreversion
+Source: "{#Payload}\tools\AGE-LICENSE"; DestDir: "{app}\tools"; Flags: ignoreversion
+Source: "{#Payload}\tools\RCLONE-COPYING"; DestDir: "{app}\tools"; Flags: ignoreversion
+Source: "{#Payload}\tools\notices\*"; DestDir: "{app}\tools\notices"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#Payload}\INSTALLER.md"; DestDir: "{app}"; DestName: "README.md"; Flags: ignoreversion
 Source: "{#Payload}\licenses\*"; DestDir: "{app}\licenses"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist
 

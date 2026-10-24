@@ -36,6 +36,8 @@ fn headless_task_runs_with_no_gui() {
     let job = save_job(
         &db.connection,
         JobDraft {
+            advanced: Default::default(),
+            secrets: None,
             id: None,
             revision: None,
             name: "Disposable scheduler test".into(),

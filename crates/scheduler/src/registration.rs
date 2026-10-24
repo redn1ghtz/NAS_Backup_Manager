@@ -248,6 +248,7 @@ mod tests {
     #[test]
     fn escapes_xml_and_quotes_state_paths_without_shell_execution() {
         let mut job = SavedJob {
+            advanced: Default::default(),
             id: "aaaaaaaa-0000-4000-8000-000000000001".into(),
             revision: 1,
             name: "test".into(),

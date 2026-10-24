@@ -44,7 +44,17 @@ fn fixture() -> (tempfile::TempDir, Connection, SavedJob) {
         "../../storage/migrations/0010_verified_progress.sql"
     ))
     .unwrap();
+    db.execute_batch(include_str!(
+        "../../storage/migrations/0011_advanced_jobs.sql"
+    ))
+    .unwrap();
+    db.execute_batch(include_str!(
+        "../../storage/migrations/0012_archive_codec.sql"
+    ))
+    .unwrap();
     let draft = JobDraft {
+        advanced: Default::default(),
+        secrets: None,
         id: None,
         revision: None,
         name: "Документы".into(),
@@ -258,6 +268,8 @@ fn new_changed_unchanged_deleted_and_restore() {
 fn rejects_overlap_and_invalid_retention() {
     let (_temp, db, job) = fixture();
     let draft = JobDraft {
+        advanced: Default::default(),
+        secrets: None,
         id: None,
         revision: None,
         name: "bad".into(),
@@ -286,6 +298,8 @@ fn rejects_overlap_and_invalid_retention() {
 fn network_destination_cannot_enroll_an_unmounted_local_folder() {
     let (_temp, db, job) = fixture();
     let draft = JobDraft {
+        advanced: Default::default(),
+        secrets: None,
         id: None,
         revision: None,
         name: "unmounted NAS".into(),
@@ -641,6 +655,8 @@ fn edit_policy(
     save_job(
         db,
         JobDraft {
+            advanced: Default::default(),
+            secrets: None,
             id: Some(job.id.clone()),
             revision: Some(job.revision),
             name: job.name.clone(),
@@ -881,6 +897,8 @@ fn preexisting_destination_files_are_not_adopted_or_modified() {
     fs::create_dir(&destination).unwrap();
     fs::write(destination.join("keep"), "unrelated").unwrap();
     let draft = JobDraft {
+        advanced: Default::default(),
+        secrets: None,
         id: None,
         revision: None,
         name: "new".into(),
@@ -966,6 +984,8 @@ fn legacy_jobs_keep_their_current_path_and_archives() {
 
 fn guard_draft(job: &SavedJob, enabled: bool, minimum: u32) -> JobDraft {
     JobDraft {
+        advanced: Default::default(),
+        secrets: None,
         id: Some(job.id.clone()),
         revision: Some(job.revision),
         name: job.name.clone(),
@@ -1114,6 +1134,8 @@ fn cross_connection_progress_tracks_actual_bytes_and_cleans_stale_workers() {
     let destination = temp.path().join("progress-destination");
     fs::create_dir(&destination).unwrap();
     let draft = JobDraft {
+        advanced: Default::default(),
+        secrets: None,
         id: None,
         revision: None,
         name: job.name,
@@ -1226,6 +1248,8 @@ fn startup_schedule_round_trips_without_changing_existing_intervals() {
     let created = save_job(
         &db,
         JobDraft {
+            advanced: Default::default(),
+            secrets: None,
             id: None,
             revision: None,
             name: "Startup".into(),

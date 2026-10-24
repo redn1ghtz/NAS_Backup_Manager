@@ -1,9 +1,9 @@
-# NAS Backup Manager 0.1.0-alpha — сборка установщика
+# NAS Backup Manager 0.2.0-alpha — сборка установщика
 
-Первый альфа-билд: `0.1.0-alpha`. Числовая Windows-версия установщика — `0.1.0.0`.
-В приложении и списке установленных программ отображается `0.1.0-alpha`.
+Альфа-версия: `0.2.0-alpha`. Числовая Windows-версия установщика — `0.2.0.0`.
+В приложении и списке установленных программ отображается `0.2.0-alpha`.
 
-Готовые комплекты находятся в `releases/0.1.0-alpha/`:
+Готовые комплекты находятся в `releases/0.2.0-alpha/`:
 
 - `portable-x64/` — portable для Windows x64.
 - `portable-x86/` — portable x86 (32 бита, также называемые x32).
@@ -22,12 +22,12 @@
 ## Через окно Inno Setup 7
 
 1. Установите Inno Setup 7. Готовым portable-комплектам Rust/Node.js не нужны.
-2. Откройте `releases/0.1.0-alpha/setup-x64.iss` в Inno Setup Compiler.
+2. Откройте `releases/0.2.0-alpha/setup-x64.iss` в Inno Setup Compiler.
 3. Нажмите **Build → Compile** или **F9**.
 4. Аналогично скомпилируйте `setup-x86.iss` для 32-битной версии.
 5. EXE появятся в соседней папке `installers/`:
-   `NAS-Backup-Manager-0.1.0-alpha-setup-x64.exe` и
-   `NAS-Backup-Manager-0.1.0-alpha-setup-x86.exe`.
+   `NAS-Backup-Manager-0.2.0-alpha-setup-x64.exe` и
+   `NAS-Backup-Manager-0.2.0-alpha-setup-x86.exe`.
 
 Для компиляции нужны соответствующие `portable-x64/`, `portable-x86/` и
 `setup-common.iss` рядом со скриптами. Пользовательские `data/` не включаются.
@@ -48,8 +48,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-installers.ps1
 Либо непосредственно:
 
 ```powershell
-& 'C:\Program Files\Inno Setup 7\ISCC.exe' '.\releases\0.1.0-alpha\setup-x64.iss'
-& 'C:\Program Files\Inno Setup 7\ISCC.exe' '.\releases\0.1.0-alpha\setup-x86.iss'
+& 'C:\Program Files\Inno Setup 7\ISCC.exe' '.\releases\0.2.0-alpha\setup-x64.iss'
+& 'C:\Program Files\Inno Setup 7\ISCC.exe' '.\releases\0.2.0-alpha\setup-x86.iss'
 ```
 
 ## Пересборка из исходников
@@ -57,6 +57,16 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-installers.ps1
 Нужны Node.js/npm, Rust stable, MSVC C++ Build Tools x86/x64, Windows SDK,
 .NET Framework C# compiler и `rustup target add i686-pc-windows-msvc`.
 Существующие package-lock.json и Cargo.lock сохраняются.
+Для подготовки лицензий нужен Python 3.11+. Перед первой упаковкой скачайте
+проверенные утилиты и соберите их notices:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/prepare-portable-tools.ps1 -Architecture x64
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/prepare-portable-tools.ps1 -Architecture x86 -BuildAgeX86
+python scripts/collect-tool-notices.py
+```
+
+Это загрузка инструментов сборки; пользователям готового установщика она не нужна.
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-release.ps1

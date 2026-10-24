@@ -108,6 +108,8 @@ mod tests {
         let job = save_job(
             &db.connection,
             JobDraft {
+                advanced: Default::default(),
+                secrets: None,
                 id: None,
                 revision: None,
                 name: "Uninstall QA".into(),

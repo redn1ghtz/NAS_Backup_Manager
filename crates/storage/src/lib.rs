@@ -12,3 +12,4 @@ pub fn require_absolute_state_directory(path: &std::path::Path) -> Result<(), &'
 }
 
 pub mod desktop_activity;
+pub mod vault;

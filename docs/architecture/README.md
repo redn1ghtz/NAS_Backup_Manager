@@ -1,4 +1,13 @@
-# Architecture — 2026-10-20
+# Architecture — 2026-10-23
+
+Release refresh (2026-10-24): 0.2.0-alpha uses the existing schema 13 and IPC.
+Streaming progress allocation now occurs only when publishing an update; copying
+and cancellation checks are unchanged. Telegram and HTML email share escaped
+report formatting; SMTP includes a plain-text MIME alternative and original subject.
+Packaging allowlists tools and notices, and supplies exact Go module source ZIPs.
+Graphify extract --code-only --cargo and cluster-only --no-label ran on 2026-10-24:
+1049 nodes, 2539 edges, 67 communities. Optional SQL parser remains unavailable;
+no extra parser/plugin was installed. Inno Pascal rules are tested natively.
 
 Status: shared backup executor, archive/restore/expiry, job storage, typed Tauri requests and headless scheduling are implemented; release gates remain. All arrows below
 describe intended ownership; see Graphify for extracted implementation structure.
@@ -272,3 +281,99 @@ preserves unchanged registry values and owned Start Menu shortcuts.
 
 Graphify extract/cluster/diagnose refreshed with the commands recorded above:
 750 nodes, 1617 edges, 42 communities (2026-10-20). Code-only limitations remain.
+
+
+## Advanced portable preview — 2026-10-23
+
+Migrations 0011/0012 add per-job policy JSON, immutable checksum baselines, verification
+results, per-version archive codecs, cloud checksum snapshots and a five-minute quota cache. `advanced` owns
+validation, bounded streaming, backoff, rate windows and SHA-256 verification.
+`remote` owns explicit age/rclone/curl process adapters. `storage::vault` uses
+Windows DPAPI CurrentUser, never SQLite plaintext. Other platforms fail closed
+for secret storage pending OS-vault adapters.
+
+IPC adds tool paths, private-key import, integrity verification, safe decryption
+export and cached cloud quota. Saved job responses never include secret values.
+UI creation/editing use the same typed options; the cloud quota panel is conditional.
+No installer or published release payload is rebuilt by this preview work.
+
+Graphify commands above were run 2026-10-23: 905 nodes, 2124 edges, 60 communities;
+cluster-only generated HTML/report. Missing optional SQL parser and the pre-existing
+C# name-resolution self-loop remain; no missing/dangling edge endpoints. No LLM
+service or optional parser was installed. See docs/ADVANCED.md for tested limits.
+
+### Automatic recovery key generation — 2026-10-23
+
+`GenerateIdentity` IPC calls core `remote::generate_identity` on the blocking worker.
+The bundled age-keygen creates standard keys; create-new plus sync saves the recovery
+file before form state changes. Private identity follows the existing DPAPI save flow.
+Graphify code-only/Cargo extraction and cluster-only were run: 925 nodes, 2172 edges,
+58 communities. SQL symbols remain unavailable (tree_sitter_sql not installed).
+
+### Managed cloud setup and integrity progress — 2026-10-23
+
+`cloud_setup` owns encrypted rclone configuration, browser authorization timeout,
+cancellation and DPAPI connection passwords. Supported providers are OneDrive,
+and Dropbox. React CloudSettings is a conditional step after destination,
+not a section of advanced policies. IPC exposes prepare/authorize/cancel/status;
+no password or OAuth token is returned. Old job JSON gets default connection fields.
+IntegrityProgress reports checked bytes, file counts and ETA to job_activity at
+most every 400 ms (plus initial/final updates). Zero read rate means unlimited.
+Graphify extract --code-only --cargo and cluster-only ran successfully: 963 nodes,
+2290 edges, 57 communities; SQL symbols remain unavailable without tree_sitter_sql.
+
+### Cloud provider removal and shared capacity UI — 2026-10-23
+
+Managed connections now allow only OneDrive/Dropbox. Unsupported persisted
+connections remain on disk but are rejected by status/validation and process
+construction. OAuth completion performs a read-only file API preflight. Process
+stderr is bounded and reduced to fixed diagnostic codes without persisting raw text.
+`StorageUsage` renders actual local/cloud values; Dashboard coalesces cloud requests,
+drops stale responses and offers forced manual refresh above local capacity.
+
+Graphify commands run:
+```powershell
+& 'C:/Users/PC/Documents/Codex/shared-tools/graphify/Scripts/graphify.exe' extract . --code-only --cargo --out docs/architecture/graph
+& 'C:/Users/PC/Documents/Codex/shared-tools/graphify/Scripts/graphify.exe' cluster-only docs/architecture/graph --no-label
+```
+Result: 972 nodes, 2308 edges, 56 communities. Missing optional SQL parser remains;
+sequential extraction was used when parallel extraction was denied by the sandbox.
+No external LLM or additional dependency was installed.
+
+### Streaming cloud progress and report formatting — 2026-10-24
+
+`remote::run_progress` drains bounded stderr, accepts rclone JSON statistics and
+keeps only the latest sample. Transfer callbacks update the existing Progress / job_activity
+contract; active mirror and archive use separate phases. The headless worker and GUI
+share these records. No new schema or resident process was introduced. React uses
+actual cloud bytes once, with 99% capped while active. Home uses a compact grid.
+Feedback associates reports with its run ID; formatting reads settings language,
+formats B–TB and the recorded finish time, and safely encodes Unicode SMTP subjects.
+
+Re-ran Graphify code-only/Cargo extraction and cluster-only commands documented above
+on 2026-10-24: 994 nodes, 2348 edges, 63 communities. Optional SQL parser still absent.
+
+### Viewport dashboard and shared operation labels — 2026-10-24
+
+OperationLabel centralizes translated operation names and supplemental color tones
+across preview, dashboard and file history. Home CSS allocates the viewport to a
+flex/grid layout with bounded, keyboard-focusable scroll regions. The existing
+20-record dashboard query/50-job pagination are unchanged; no resize listener,
+new background requests, schema or IPC change was introduced. Provider labels use
+saved cloudProvider values, without guessing from a remote folder name.
+Graphify code-only/Cargo extraction and cluster-only commands documented above ran:
+996 nodes, 2360 edges, 61 communities; optional SQL symbols remain unavailable.
+
+### Shared notification profile / 0.2.0-alpha — 2026-10-24
+
+Schema 13 adds notification_settings singleton metadata. The core
+notification_settings module owns protected blob references, validation, legacy
+fallback and explicit per-job import. Updates use a local exclusive lock and an
+immutable DPAPI blob, followed by a single SQLite pointer update; secrets never
+enter view responses. Tauri IPC exposes notificationSettings/save/import, and the
+lazy NotificationSettings UI configures shared destinations. AdvancedSettings keeps
+only two per-job channel flags. Headless remote::notify resolves the same profile.
+No added daemon, idle polling, network connection or third-party dependency.
+
+Graphify extract --code-only --cargo and cluster-only commands documented above ran
+on 2026-10-24: 1037 nodes, 2507 edges, 69 communities. Optional SQL parser is absent.

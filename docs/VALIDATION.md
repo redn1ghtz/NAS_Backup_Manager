@@ -1,3 +1,221 @@
+## 0.2.0-alpha release preparation — 2026-10-24
+
+Windows 10 19045 x64, Intel CC150/16 logical cores/15.92 GiB RAM; x86 under WOW64.
+Native 32-bit Windows, Windows 11 separately, Linux/macOS and real NAS/cloud
+accounts are not validated by this preparation.
+
+- `cargo test --workspace --locked --offline` and the i686 target: 80 passed,
+  9 opt-in tests skipped per architecture. Existing archive, restore, cancellation,
+  traversal, ownership, migration and offline-resource scenarios remain covered.
+- Explicit core advanced/lib opt-in tests with packaged tools: 5 passed per
+  architecture, including age roundtrip and safe decryption, local alias rclone
+  transfer/quota/checksum, encrypted config, provider config questions and cancellation.
+  No real cloud login or email/Telegram delivery occurred.
+- `node --test tests/state-refresh.test.mjs tests/ui-format.test.mjs`: 17 passed.
+  npm production build/TypeScript, workspace Clippy -D warnings and rustfmt passed.
+- Both release desktop/CLI targets built with `tauri/custom-protocol`.
+  Native `test-advanced-ui.mjs` passed per target; global notifications, protected
+  secret blankness, schema 13, cloud progress and responsive layouts were checked.
+- `test-window-lifecycle.mjs --cycles=2` passed per target on a disposable 512 MiB
+  copy: two close/reopen cycles reused the process, work continued, bytes verified,
+  and the open GUI remained available after completion.
+- 10k-file release benchmarks and short idle GUI samples passed per target;
+  see PERFORMANCE.md for measured scope, CPU, RAM and elapsed times.
+- Explicit Windows scheduler integration passed with both packaged CLIs: actual
+  GUI-closed backup, minute/hour/day registration and delayed user-logon trigger.
+  Each test removed only its own UUID-named task and disposable data.
+- Inno Setup 7.1 compiled both production installers, product version 0.2.0-alpha.
+  Four isolated QA AppId installs/uninstalls passed (x64/x86 × RU/EN): tool hashes
+  match payload; portable.flag absent; only owned fixture tasks removed; unrelated
+  fixture tasks/user files/config remain; retained schedule flags disabled.
+  Future-schema failure blocked deletion. QA uses uncompressed payload for speed;
+  production uses LZMA2. The user's actual installation was not modified.
+- First installer test attempt exposed a Windows PowerShell 5 native quoting bug
+  in the Python test fixture, not a product failure. Fixed by piping Python via
+  stdin and checking exit codes; all four variants passed on rerun.
+- Tool notices cover 248 exact linked Go modules, with h1 verification and full
+  GPL/LGPL/MPL texts where relevant. Exact corresponding source module ZIPs are
+  supplied in the release's tool-sources.zip, with rebuilding/replacement guidance.
+- README based on the live GitHub main version fetched on 2026-10-24, preserving
+  the author's introduction. Release notes/changelog and publication guide updated.
+
+Unsigned alpha builds. Full-scale concurrent-job benchmarks, real disconnected
+NAS/removable hardware, production provider authentication and real notification
+delivery remain release limitations. No unmeasured speedup percentage is claimed.
+
+## Telegram and email formatted report — 2026-10-24
+
+Telegram uses HTML parse mode: bold application heading, blank line, bold field
+labels with plain values. The email subject is no longer duplicated in Telegram.
+Localized duration, adaptive byte units and actual finish timestamp are preserved.
+Job names escape ampersands and angle brackets; line breaks are normalized.
+Focused remote tests validate the exact Russian payload, English failure labels,
+HTML escaping and existing email encoding. Email uses multipart/alternative with
+the same HTML formatting and a plain-text fallback; its original subject remains.
+Tests decode the quoted-printable HTML and check MIME boundaries, escaping and subject.
+No live messages are sent by these tests.
+Windows 10 x64: focused remote tests passed on x64 and i686/WOW64 (10 passed,
+1 opt-in rclone test skipped per architecture); rustfmt check passed.
+
+## Shared Telegram/SMTP settings and 0.2.0-alpha — 2026-10-24
+
+Active Cargo/Tauri/npm sources now use 0.2.0-alpha. This is a new minor alpha
+preview after the cloud/integrity/reporting additions. Published 0.1.0-alpha
+assets, installer definitions and frozen portable release folders remain unchanged.
+
+Schema 13 creates a singleton notification profile. SQLite stores only destination
+metadata and a reference to a new immutable DPAPI blob. Tokens/passwords never enter
+SQLite or read-settings responses. Save preserves blank secrets; failed validation
+keeps the previous profile. A local file lock serializes writes, and the metadata
+pointer is updated only after the new encrypted blob is flushed. Old blobs remain
+valid for concurrent readers. If a protected blob is inaccessible, replacement
+requires explicit secrets for every configured channel, preventing silent loss.
+
+Tasks keep only Telegram/SMTP enable flags in their form. Account configuration is
+in app Settings. Headless notification delivery resolves shared settings at run end;
+unconfigured channels retain legacy per-job fallback. Import from a selected legacy
+job is explicit and merges its enabled channels without changing jobs/schedules.
+The import selector is paginated in batches of 50; no full-job scan is kept in UI.
+
+Windows 10 x64: 78 ordinary workspace tests passed per architecture (x64 and i686
+under WOW64), 9 opt-in tests skipped per default run. New tests cover v12 migration,
+protected global secrets, blank preservation, legacy fallback/import, unchanged job
+revision/schedule, rejected insecure headers/SMTP URLs, and inaccessible-vault
+replacement. 17 Node tests, TypeScript/Vite, Clippy -D warnings and rustfmt passed.
+Native packaged WebView checks passed on both architectures: checkbox-only task UI, global save, secret fields empty
+on reopening, inherited channels with no per-job destinations, and displayed
+0.2.0-alpha/schema 13. All credentials are dummy .invalid fixtures; no enabled
+notification job was executed and no external SMTP/Telegram delivery was attempted.
+An early bulk-save fixture run during a parallel release build returned a generic
+SQLite error; its integrity check was OK, and a serial rerun passed. Raw SQL details
+are intentionally not exposed. Native 32-bit Windows/Linux/macOS remain unverified.
+
+## Responsive viewport panels and operation colors — 2026-10-24
+
+Home uses the available viewport width/height. The job list and recent-operations
+region grow/shrink with the window and scroll internally; their headings/actions
+stay accessible. The former three-row frontend slice is removed; the existing
+backend bound of 20 recent records and 50-job pagination remain. Summary cards,
+capacity and concurrent progress strips have bounded internal overflow. Large
+windows use larger spacing/text; short windows use compact controls. No periodic
+resize polling or new dependency was introduced.
+
+OperationLabel is shared by preview, recent operations and file history: delete
+(including permanent deletion) is red, update is yellow and create is green. Text
+labels are preserved, so color is supplemental. Known cloud provider is appended
+to the heading as Dropbox or OneDrive; legacy/unknown providers remain generic.
+
+Actual checks: TypeScript/Vite build, 17 Node format/state-refresh tests, packaged
+WebView x64/x86 fixtures with one and 15 independent jobs. Viewports: 1024x600,
+1024x700, 1400x900, 1920x1080; during transfer also 1024x700 and 1400x700. Verified
+page/document bounds, internal job overflow, larger pane heights and more fully
+visible jobs at the largest viewport. Computed colors checked against a real
+create/update/delete preview; both provider headings checked. Real user state and
+cloud accounts were not used. x86 runs under WOW64. Installers/releases unchanged.
+Core behavior was unchanged; the full Rust suite was not rerun for these UI edits.
+
+## Cloud transfer progress, compact home and localized reports — 2026-10-24
+
+The transfer adapter reads rclone JSON stats every 500 ms, publishes actual bytes,
+file counts, path and measured ETA through existing job_activity, and separates
+active mirror and archive upload phases. One latest sample and at most 64 KiB of a
+JSON line are retained. Raw stderr never goes to UI/history. Unknown totals remain
+indeterminate; the bar cannot report 100% while a worker is active.
+
+Home uses a compact grid: jobs and summary cards beside cloud/local storage. Rings
+and refresh controls are smaller; redundant zero-byte suffixes and single-page job
+pagination are removed. During transfer the recent-operations preview collapses to
+its heading/history link, and the generic subtitle is omitted; rows return when
+work ends. Small-window layout is tested, not enforced by clipping page overflow.
+
+SMTP/Telegram reports use the current settings language. Subject names the job and
+success/non-completion. Body contains task, localized result, adaptive B–TB size,
+duration, and the specific run's finish timestamp in local time with UTC offset.
+Feedback tracks the run ID so a previous run is not used after an early failure.
+Duration is independent of whether any file operations were committed. SMTP subject
+uses folded UTF-8 RFC 2047 Q-encoding; body uses quoted-printable.
+
+Windows 10 x64: 73 ordinary workspace tests passed for both x64 and i686 under WOW64;
+9 opt-in tests skipped per default run. Explicit real-rclone tests cover 4 MiB local
+transfer, intermediate bytes, ETA and cancellation for both architectures, plus
+cloud ownership/archive/quota/checksum round-trip using disposable alias storage.
+17 Node tests passed; TypeScript/Vite, Clippy -D warnings and rustfmt passed.
+Real account uploads and external SMTP/Telegram delivery are not claimed by these
+local tests. Final packaged WebView checks passed for x64 and x86: live cloud
+bytes/progress, reload during transfer, terminal success, manual quota cache bypass,
+cloud-first capacity and no label overlap. A single job with cloud quota enabled
+fits 1024x700 and 1400x700 without page scrolling, during and after transfer.
+The final checks used packaged CSS, without test style injection.
+Native 32-bit Windows remains untested. Installers/releases unchanged.
+
+## Cloud provider removal and capacity layout — 2026-10-23
+
+Only OneDrive and Dropbox are offered for new managed connections. Retired
+connections are rejected with a localized actionable error; existing metadata,
+credentials and backup files are preserved. Disabling cloud or reconnecting to a
+supported provider remains possible. Read-only file listing is checked after OAuth
+before connection success is recorded. External stderr is drained in bounded
+buffers; only fixed diagnostic codes reach the UI (410, authentication, permission).
+
+Cloud quota uses the same percentage ring and used/free/total rows as local disk,
+appears above local disk/cache and has its own refresh button that bypasses cache.
+Automatic refresh remains event-driven with a five-minute backend cache.
+
+Windows 10 x64: 70 ordinary workspace tests passed for x64 and i686 under WOW64,
+8 opt-in tests skipped per default run. Explicit managed-cloud tests: 2 passed per
+architecture; cloud ownership/archive/quota/checksum integration: 1 passed per
+architecture using disposable local alias storage. 16 Node tests, TypeScript/Vite,
+Clippy (-D warnings) and rustfmt passed. No real OneDrive/Dropbox account login or
+upload was performed. Real WebView tests passed for both Preview packages: two
+providers, auto encrypted config, cloud above local, actual quota rings, independent
+manual refresh bypassing a seeded SQLite cache, no label overlap, hide on cloud off,
+live verification counters. Fixture layout checked at 1400x900; wizard at 1024x700.
+Published artifacts and installers were not rebuilt.
+
+## Cloud wizard and integrity counters — 2026-10-23
+
+Supported cloud connections: OneDrive and Dropbox. A dedicated wizard step
+follows destination/cache selection. The app creates encrypted configuration before
+authorization, generates and DPAPI-protects its password, opens the system browser,
+limits authorization to 5 minutes and supports cancellation. No manual config paths
+or developer OAuth JSON is required. OneDrive currently uses the first available
+Personal/Business drive; SharePoint setup is not offered.
+
+Integrity verification publishes real file counts, bytes, percentage (local phase)
+and measured ETA. Read speed 0 means unlimited, including cloud read verification.
+Progress writes are throttled to 400 ms plus initial/final updates.
+
+Validation actually run on Windows 10 x64: 66 ordinary workspace tests passed for
+both x64 and i686; 8 opt-in tests skipped in the default run. The two managed-cloud
+tests were explicitly run for both architectures with rclone: encrypted configuration,
+DPAPI password, cancellation, all three providers reaching the browser authorization
+question without user client keys (offline, no account). Age/cloud alias round-trip
+integration tests were explicitly run for both architectures. 16 Node format/state
+tests passed, as did TypeScript/Vite, Clippy with warnings denied and rustfmt.
+Real WebView tests passed for both portable packages: separate cloud step, exactly
+three providers, no manual config fields, auto encrypted config, saved zero read
+limit, and live counters while verifying a disposable 4 MiB file. Launch/SQLite smoke
+checks passed, schema 12 and integrity_check=ok. Viewport: 1024x700.
+
+Real cloud-account consent, quota and uploads are not verified without user accounts.
+Native 32-bit Windows remains untested; i686 ran under WOW64. Installer and published
+release artifacts were not rebuilt. Older dated validation records follow.
+
+## Portable preview update — 2026-10-23
+
+Automatic age recovery keys: core generation saves a new recovery file before
+returning keys to the form. Existing files are refused without modification.
+Public recipient is filled automatically; private identity uses the existing
+DPAPI flow on job save. No installer or published release was rebuilt.
+
+Checks actually run on Windows 10 x64: workspace tests (65 passed, 6 opt-in tests
+skipped), Clippy with warnings denied, TypeScript/Vite production build, 15 Node
+format/state tests. Official age round-trip integration test explicitly passed
+for both x64 and x86 under WOW64, including public/private correspondence,
+no overwrite, encrypted copy, archive, restore and independent decryption.
+Native 32-bit Windows, real cloud accounts and live mail/Telegram delivery were
+not tested. Earlier dated records below describe their original test stage.
+
 # First alpha distribution and Inno Setup 7 — 2026-10-20
 
 Version is 0.1.0-alpha throughout Cargo/npm/Tauri and Inno's displayed version;
