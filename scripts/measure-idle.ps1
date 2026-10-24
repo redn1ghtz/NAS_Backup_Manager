@@ -1,9 +1,10 @@
 # Opt-in measurement of an isolated GUI clone and its WebView descendants.
-param([ValidateSet('x64','x86')][string]$Architecture='x64', [ValidateSet('before','after')][string]$Label='after', [int]$Seconds=8)
+param([ValidateSet('x64','x86')][string]$Architecture='x64', [ValidateSet('before','after','advanced','release020')][string]$Label='after', [int]$Seconds=8,[switch]$TestBuild)
 $ErrorActionPreference='Stop'
 if($Seconds -lt 2 -or $Seconds -gt 30){throw 'Use 2..30 seconds'}
 $root=Split-Path -Parent $PSScriptRoot
 $folder=if($Architecture -eq 'x86'){'NAS Backup Manager x86'}else{'NAS Backup Manager'}
+if($TestBuild){$folder+=" Preview"}
 $package=Join-Path (Join-Path $root 'portable') $folder
 $fixture=Join-Path $root ('target/idle-measure-'+[guid]::NewGuid())
 New-Item -ItemType Directory -Path $fixture | Out-Null

@@ -17,9 +17,9 @@ import subprocess
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.1.0-alpha"
+VERSION = json.loads((ROOT / "apps/desktop/package.json").read_text(encoding="utf-8"))["version"]
 OMIT_DIRS = {".git", ".codex", ".agents", ".aws", "node_modules", "target", "dist", "gen", "__pycache__", "graphify-out", "data"}
-OMIT_SUFFIXES = {".exe", ".dll", ".zip", ".7z", ".msi", ".sqlite", ".sqlite3", ".db", ".log", ".pyc", ".pem", ".pfx", ".p12", ".key"}
+OMIT_SUFFIXES = {".dpapi", ".agekey", ".conf", ".exe", ".dll", ".zip", ".7z", ".msi", ".sqlite", ".sqlite3", ".db", ".log", ".pyc", ".pem", ".pfx", ".p12", ".key"}
 
 
 def sha(path: Path) -> str:
@@ -51,7 +51,7 @@ def collect_licenses() -> tuple[Path, dict]:
         result = subprocess.run(command, cwd=ROOT, check=True, capture_output=True, encoding="utf-8")
         for package in json.loads(result.stdout)["packages"]:
             packages[(package["name"], package["version"])] = package
-    snapshot = ROOT / "target/third-party-licenses"
+    snapshot = ROOT / "target/third-party-licenses" / VERSION
     snapshot.mkdir(parents=True, exist_ok=True)
     rows = []
     for (name, version), package in sorted(packages.items()):
@@ -139,7 +139,7 @@ def copy_source(destination: Path) -> list[str]:
     candidates = [ROOT / name for name in roots]
     for name in ("apps", "crates", "installers", "scripts", "tests", "docs"):
         for base, directories, names in os.walk(ROOT / name):
-            directories[:] = sorted(d for d in directories if d not in OMIT_DIRS and not d.startswith(".graphify") and not (Path(base) / d).is_symlink())
+            directories[:] = sorted(d for d in directories if d not in OMIT_DIRS and d not in {"qa", "graph"} and not d.startswith(".graphify") and not (Path(base) / d).is_symlink())
             candidates.extend(Path(base) / filename for filename in sorted(names))
     for source in candidates:
         relative = source.relative_to(ROOT)
@@ -170,7 +170,12 @@ def zip_paths(output: Path, files: list[tuple[Path, str]]) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(__doc__)
     parser.add_argument("--output-dir", type=Path)
+    parser.add_argument("--skip-package", action="store_true", help="Use already staged and compiled release files")
+    parser.add_argument("--licenses-only", action="store_true", help="Refresh this version's Rust/npm license snapshot only")
     args = parser.parse_args()
+    if args.licenses_only:
+        print(collect_licenses()[1])
+        return
     output = (args.output_dir or ROOT / "github-upload" / VERSION).resolve()
     publication_root = (ROOT / "github-upload").resolve()
     publication_root.relative_to(ROOT)
@@ -182,7 +187,7 @@ def main() -> None:
         raise RuntimeError("Update the publication helper for the current version")
     licenses, license_summary = collect_licenses()
     # Repackage existing binaries with notices, then rebuild only Inno installers.
-    for script, extra in (("package-release.ps1", ["-SkipBuild"]), ("build-installers.ps1", [])):
+    for script, extra in (() if args.skip_package else (("package-release.ps1", ["-SkipBuild"]), ("build-installers.ps1", []))):
         subprocess.run(["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(ROOT / "scripts" / script), *extra], cwd=ROOT, check=True)
     release = ROOT / "releases" / VERSION
     output.mkdir(parents=True)
@@ -194,19 +199,35 @@ def main() -> None:
     base = f"NAS-Backup-Manager-{VERSION}"
     for arch in ("x64", "x86"):
         portable = release / f"portable-{arch}"
-        allowed = {"NAS Backup Manager.exe", "nas-backup.exe", "nas-backup-notify.exe", "portable.flag", "LICENSE", "THIRD_PARTY_NOTICES.md", "README.md", "USER_GUIDE.md", "VALIDATION.md", "INSTALLER.md"}
+        allowed = {"NAS Backup Manager.exe", "nas-backup.exe", "nas-backup-notify.exe", "portable.flag", "LICENSE", "THIRD_PARTY_NOTICES.md", "README.md", "USER_GUIDE.md", "VALIDATION.md", "INSTALLER.md", "ADVANCED.md", "TOOL_SOURCES.md"}
         files = [(portable / name, f"portable-{arch}/{name}") for name in sorted(allowed)]
         files.extend((path, f"portable-{arch}/licenses/" + path.relative_to(licenses).as_posix()) for path in licenses.rglob("*") if path.is_file())
+        tools = portable / "tools"
+        files.extend((tools / name, f"portable-{arch}/tools/{name}") for name in ("age.exe", "age-keygen.exe", "rclone.exe", "AGE-LICENSE", "RCLONE-COPYING"))
+        files.extend((path, f"portable-{arch}/tools/notices/" + path.relative_to(tools / "notices").as_posix()) for path in (tools / "notices").rglob("*") if path.is_file())
         zip_paths(assets / f"{base}-portable-{arch}.zip", files)
         setup = release / "installers" / f"{base}-setup-{arch}.exe"
         shutil.copyfile(setup, assets / setup.name)
     zip_paths(assets / f"{base}-inno-scripts.zip", [(release / name, name) for name in ("setup-x64.iss", "setup-x86.iss", "setup-common.iss", "BUILD_INSTALLERS.md")] + [(ROOT / "LICENSE", "LICENSE")])
-    zip_paths(assets / f"{base}-third-party-licenses.zip", [(p, p.relative_to(licenses).as_posix()) for p in licenses.rglob("*") if p.is_file()])
+    tool_notices = release / 'portable-x64/tools'
+    zip_paths(assets / f"{base}-third-party-licenses.zip", [(p, p.relative_to(licenses).as_posix()) for p in licenses.rglob("*") if p.is_file()] + [(p, 'tools/' + p.relative_to(tool_notices).as_posix()) for p in tool_notices.rglob('*') if p.is_file() and p.suffix.lower() != '.exe'])
+    # Supply source of the exact linked Go modules, including rclone's LGPL/MPL
+    # dependencies, rather than relying solely on upstream source availability.
+    modules = json.loads((tool_notices / 'notices/modules/inventory.json').read_text())['modules']
+    source_files = [(ROOT / 'docs/TOOL_SOURCES.md', 'README.md')]
+    cache = ROOT / 'target/optional-tools/go-work/pkg/mod/cache/download'
+    for module in modules:
+        escaped = ''.join('!' + c.lower() if c.isupper() else c for c in module['module'])
+        for extension in ('zip', 'mod', 'info'):
+            relative = f"{escaped}/@v/{module['version']}.{extension}"
+            source_files.append((cache / relative, 'proxy/' + relative))
+    source_files.extend((p, 'notices/' + p.relative_to(tool_notices / 'notices').as_posix()) for p in (tool_notices / 'notices').rglob('*') if p.is_file())
+    zip_paths(assets / f"{base}-tool-sources.zip", source_files)
     hashes = [f"{sha(p)}  {p.name}" for p in sorted(assets.iterdir())]
     (assets / "SHA256SUMS.txt").write_text("\n".join(hashes) + "\n", encoding="utf-8")
-    shutil.copyfile(ROOT / "docs/RELEASE_NOTES_0.1.0-alpha.md", output / "RELEASE_NOTES.md")
+    shutil.copyfile(ROOT / f"docs/RELEASE_NOTES_{VERSION}.md", output / "RELEASE_NOTES.md")
     shutil.copyfile(ROOT / "docs/GITHUB_PUBLISH.md", output / "PUBLISH_GITHUB_RU.md")
-    secret_pattern = re.compile(rb"(?:gh[pousr]_[a-zA-Z0-9]{25,}|github_pat_[a-zA-Z0-9_]{25,}|AKIA[0-9A-Z]{16}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----)")
+    secret_pattern = re.compile(rb"(?:gh[pousr]_[a-zA-Z0-9]{25,}|github_pat_[a-zA-Z0-9_]{25,}|AKIA[0-9A-Z]{16}|AGE-SECRET-KEY-[A-Z0-9]{40,}|[0-9]{8,12}:[A-Za-z0-9_-]{30,}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----)")
     for path in source.rglob("*"):
         if path.is_file() and secret_pattern.search(path.read_bytes()):
             raise RuntimeError(f"Possible credential/private key in {path.relative_to(source)}; inspect before publishing")

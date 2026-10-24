@@ -61,3 +61,18 @@ test('Progress-only SQLite commits preserve the same job page identity',()=>{
  const p=[{id:'a',lastResult:'running',lastRun:1}];assert.ok(sameJobPage(p,JSON.parse(JSON.stringify(p))));
  assert.equal(sameJobPage(p,[{...p[0],lastResult:'succeeded'}]),false);
 });
+
+test('Integrity progress uses verified bytes once and cloud checks stay indeterminate',()=>{
+ const p={phase:'integrity',totalBytes:100,copiedBytes:0,verifiedBytes:50,total:2,completed:1};
+ assert.equal(progressPercent(p),50);
+ assert.equal(progressPercent({...p,verifiedBytes:100}),99);
+ assert.equal(progressPercent({...p,phase:'cloudIntegrity'}),undefined);
+});
+
+test('Cloud percentage follows uploaded bytes without local readback weighting',()=>{
+ const p={phase:'cloud',totalBytes:100,copiedBytes:40,verifiedBytes:0,total:4,completed:1};
+ assert.equal(progressPercent(p),40);
+ assert.equal(progressPercent({...p,phase:'cloudArchive',copiedBytes:80}),80);
+ assert.equal(progressPercent({...p,copiedBytes:100}),99);
+ assert.equal(progressPercent({...p,totalBytes:0}),undefined);
+});

@@ -1,4 +1,4 @@
-param([switch]$SkipBuild, [ValidateSet('x64','x86')][string]$Architecture='x64')
+param([switch]$SkipBuild, [ValidateSet('x64','x86')][string]$Architecture='x64', [switch]$TestBuild)
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $targetArguments = @()
@@ -17,6 +17,7 @@ if (-not $SkipBuild) {
     try { & cargo build --release --locked -p nas-backup-cli @targetArguments; if ($LASTEXITCODE -ne 0) { throw 'CLI build failed' } }
     finally { Pop-Location }
 }
+if($TestBuild){$folderName += " Preview"}
 $outputDirectory = Join-Path (Join-Path $projectRoot 'portable') $folderName
 $hostArtifact = Join-Path $artifactDirectory 'nas-backup-notify.exe'
 if (-not (Test-Path -LiteralPath $hostArtifact -PathType Leaf)) { throw 'Notification sidecar is missing; build the Windows storage crate first' }
@@ -43,10 +44,23 @@ Copy-Item -LiteralPath (Join-Path $projectRoot 'THIRD_PARTY_NOTICES.md') -Destin
 Copy-Item -LiteralPath (Join-Path $projectRoot 'docs/USER_GUIDE.md') -Destination $outputDirectory -Force
 Copy-Item -LiteralPath (Join-Path $projectRoot 'docs/VALIDATION.md') -Destination $outputDirectory -Force
 Copy-Item -LiteralPath (Join-Path $projectRoot 'docs/PORTABLE.md') -Destination (Join-Path $outputDirectory 'README.md') -Force
-$licenseSnapshot=Join-Path $projectRoot 'target/third-party-licenses'
+$licenseSnapshot=Join-Path $projectRoot "target/third-party-licenses/$expectedVersion"
 if(Test-Path -LiteralPath $licenseSnapshot -PathType Container) {
     $licenseDirectory=Join-Path $outputDirectory 'licenses'
     New-Item -ItemType Directory -Path $licenseDirectory -Force | Out-Null
     Copy-Item -Path (Join-Path $licenseSnapshot '*') -Destination $licenseDirectory -Recurse -Force
 }
 Write-Output $outputDirectory
+
+$optionalTools=Join-Path $projectRoot "target/optional-tools/$Architecture"
+if(Test-Path -LiteralPath $optionalTools -PathType Container){
+ $toolDestination=Join-Path $outputDirectory 'tools'
+ New-Item -ItemType Directory -Path $toolDestination -Force | Out-Null
+ foreach($name in @('age.exe','age-keygen.exe','rclone.exe','LICENSE','AGE-LICENSE','RCLONE-COPYING','README.txt','BUILD-SOURCE.json')){
+  $file=Join-Path $optionalTools $name
+  if(Test-Path -LiteralPath $file -PathType Leaf){Copy-Item -LiteralPath $file -Destination $toolDestination -Force}
+ }
+ if(Test-Path -LiteralPath (Join-Path $optionalTools 'notices')){Copy-Item -LiteralPath (Join-Path $optionalTools 'notices') -Destination $toolDestination -Recurse -Force}
+}
+Copy-Item -LiteralPath (Join-Path $projectRoot 'docs/ADVANCED.md') -Destination $outputDirectory -Force
+Copy-Item -LiteralPath (Join-Path $projectRoot 'docs/TOOL_SOURCES.md') -Destination $outputDirectory -Force

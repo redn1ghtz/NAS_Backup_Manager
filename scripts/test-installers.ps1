@@ -2,7 +2,8 @@
 param([string]$ISCC='C:/Program Files/Inno Setup 7/ISCC.exe')
 $ErrorActionPreference='Stop'
 $root=Split-Path -Parent $PSScriptRoot
-$release=Join-Path $root 'releases/0.1.0-alpha'
+$version=(Get-Content -LiteralPath (Join-Path $root 'apps/desktop/package.json') -Raw | ConvertFrom-Json).version
+$release=Join-Path $root "releases/$version"
 $fixture=Join-Path $root ('target/inno-smoke-'+[guid]::NewGuid())
 New-Item -ItemType Directory -Path $fixture | Out-Null
 $service=New-Object -ComObject 'Schedule.Service'; $service.Connect();$folder=$service.GetFolder('\')
@@ -33,10 +34,13 @@ foreach($architecture in @('x64','x86')) {
     $installer=Join-Path $compile 'test-setup.exe'
     $process=Start-Process -FilePath $installer -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',('/LANG='+$language),('/DIR="'+$directory+'"'),('/LOG="'+(Join-Path $fixture "$id-install.log")+'"')) -WindowStyle Hidden -PassThru -Wait
     if($process.ExitCode -ne 0){throw "Install failed: $architecture/$language exit $($process.ExitCode)"}
-    foreach($name in @('NAS Backup Manager.exe','nas-backup.exe','nas-backup-notify.exe','unins000.exe')) {
+    foreach($name in @('NAS Backup Manager.exe','nas-backup.exe','nas-backup-notify.exe','unins000.exe','tools/age.exe','tools/age-keygen.exe','tools/rclone.exe','tools/AGE-LICENSE','tools/RCLONE-COPYING','ADVANCED.md')) {
         if(-not(Test-Path -LiteralPath (Join-Path $directory $name))){throw "Missing installed file: $name"}
     }
     if(Test-Path -LiteralPath (Join-Path $directory 'portable.flag')){throw 'Installer included portable.flag'}
+    foreach($tool in @('age.exe','age-keygen.exe','rclone.exe')) {
+      if((Get-FileHash -LiteralPath (Join-Path $directory "tools/$tool")).Hash -ne (Get-FileHash -LiteralPath (Join-Path $release "portable-$architecture/tools/$tool")).Hash){throw "Tool payload mismatch: $tool"}
+    }
     $own1='NASBackupManager-'+[guid]::NewGuid();$own2='NASBackupManager-'+[guid]::NewGuid()
     $foreign='NASBackupManager-'+[guid]::NewGuid();$unrelated='NASBackupInstallerQA-'+[guid]::NewGuid()
     $cli=Join-Path $directory 'nas-backup.exe'
@@ -60,10 +64,12 @@ db.commit()
       Set-Content -LiteralPath (Join-Path $directory 'keep-user-file.txt') -Value 'Must survive uninstall'
       if($architecture -eq 'x64' -and $language -eq 'ru') {
         # A metadata failure must stop before deleting application files/tasks.
-        python -c 'import sqlite3,sys;d=sqlite3.connect(sys.argv[1]);d.execute("INSERT INTO schema_migrations VALUES(999,0)");d.commit()' $state
+        'import sqlite3,sys;d=sqlite3.connect(sys.argv[1]);d.execute("INSERT INTO schema_migrations VALUES(999,0)");d.commit()' | python - $state
+        if($LASTEXITCODE -ne 0){throw 'Could not create future-schema fixture'}
         [void](RunUninstall $directory (Join-Path $fixture "$id-rejected.log"))
         if(-not(Test-Path -LiteralPath $cli) -or -not(HasTask $own1)){throw 'Failed cleanup did not preserve app/tasks'}
-        python -c 'import sqlite3,sys;d=sqlite3.connect(sys.argv[1]);d.execute("DELETE FROM schema_migrations WHERE version=999");d.commit()' $state
+        'import sqlite3,sys;d=sqlite3.connect(sys.argv[1]);d.execute("DELETE FROM schema_migrations WHERE version=999");d.commit()' | python - $state
+        if($LASTEXITCODE -ne 0){throw 'Could not reset future-schema fixture'}
       }
       $code=RunUninstall $directory (Join-Path $fixture "$id-uninstall.log")
       if($code -ne 0){throw "Uninstall failed: $code"}
@@ -71,7 +77,8 @@ db.commit()
       if(-not(HasTask $foreign) -or -not(HasTask $unrelated)){throw 'Uninstall touched unrelated scheduled tasks'}
       if(Test-Path -LiteralPath $cli){throw 'Installed executable survived successful uninstall'}
       if(-not(Test-Path -LiteralPath $state) -or -not(Test-Path -LiteralPath (Join-Path $directory 'keep-user-file.txt'))){throw 'Uninstall removed user data'}
-      $enabled=python -c 'import sqlite3,sys;d=sqlite3.connect(sys.argv[1]);print(d.execute("SELECT sum(schedule_enabled) FROM jobs").fetchone()[0])' $state
+      $enabled='import sqlite3,sys;d=sqlite3.connect(sys.argv[1]);print(d.execute("SELECT sum(schedule_enabled) FROM jobs").fetchone()[0])' | python - $state
+      if($LASTEXITCODE -ne 0){throw 'Could not verify schedule metadata'}
       if($enabled.Trim() -ne '0'){throw 'Retained configuration still marks schedules enabled'}
       $results += [pscustomobject]@{architecture=$architecture;language=$language;installed=$true;ownTasksRemoved=$true;foreignTasksPreserved=$true;userDataPreserved=$true;scheduleFlagsDisabled=$true}
       Write-Output "PASS $architecture/$language install + uninstall; owned tasks removed; unrelated tasks/data preserved."

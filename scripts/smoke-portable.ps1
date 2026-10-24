@@ -1,10 +1,11 @@
+param([string]$Package='portable/NAS Backup Manager Preview')
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $smokeDirectory = Join-Path (Join-Path $projectRoot 'target') ('portable-smoke-' + [guid]::NewGuid().ToString())
 New-Item -ItemType Directory -Path $smokeDirectory | Out-Null
-Copy-Item -LiteralPath (Join-Path $projectRoot 'portable/NAS Backup Manager/NAS Backup Manager.exe') -Destination $smokeDirectory
-Copy-Item -LiteralPath (Join-Path $projectRoot 'portable/NAS Backup Manager/nas-backup.exe') -Destination $smokeDirectory
-Copy-Item -LiteralPath (Join-Path $projectRoot 'portable/NAS Backup Manager/nas-backup-notify.exe') -Destination $smokeDirectory
+Copy-Item -LiteralPath (Join-Path (Join-Path $projectRoot $Package) 'NAS Backup Manager.exe') -Destination $smokeDirectory
+Copy-Item -LiteralPath (Join-Path (Join-Path $projectRoot $Package) 'nas-backup.exe') -Destination $smokeDirectory
+Copy-Item -LiteralPath (Join-Path (Join-Path $projectRoot $Package) 'nas-backup-notify.exe') -Destination $smokeDirectory
 Set-Content -LiteralPath (Join-Path $smokeDirectory 'portable.flag') -Value 'test-only' -Encoding utf8
 $validationScript = Join-Path $smokeDirectory 'validate.py'
 @'
@@ -16,7 +17,7 @@ for attempt in range(20):
             integrity = db.execute('PRAGMA integrity_check').fetchone()[0]
             jobs = db.execute('SELECT count(*) FROM jobs').fetchone()[0]
             tables = {row[0] for row in db.execute('SELECT name FROM sqlite_master')}
-        assert version == 10 and integrity == 'ok' and jobs == 0
+        assert version == 13 and integrity == 'ok' and jobs == 0
         assert {'run_metrics', 'file_events'} <= tables
         print(json.dumps(dict(schema=version, integrity=integrity, jobs=jobs)))
         break
