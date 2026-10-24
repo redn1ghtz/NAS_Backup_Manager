@@ -24,7 +24,7 @@ if(appMode){
  Object.assign(window,{isTauri:true});
  mockIPC((command,args)=>{
   if(command==="state_changed"){const changed=dirty;dirty=false;return changed;}
-  if(command==="get_app_status")return {version:"0.1.0",schemaVersion:10,notificationsEnabled:notifications,jobCount:appJobs.length,language:"ru",executionAvailable:true,wakeSupported:true};
+   if(command==="get_app_status")return {version:"0.2.0-alpha",schemaVersion:13,notificationsEnabled:notifications,jobCount:appJobs.length,language:"ru",executionAvailable:true,wakeSupported:true};
   if(command==="set_notifications"){notifications=!!args.enabled;return;}
   if(command!=="backup_command")throw Error(`Unexpected command: ${command}`);
   const request=args.request as {action:string;enabled?:boolean};commands.push(request.action);

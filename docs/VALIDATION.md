@@ -59,9 +59,11 @@ Windows 10 x64: focused remote tests passed on x64 and i686/WOW64 (10 passed,
 
 ## Shared Telegram/SMTP settings and 0.2.0-alpha — 2026-10-24
 
-Active Cargo/Tauri/npm sources now use 0.2.0-alpha. This is a new minor alpha
-preview after the cloud/integrity/reporting additions. Published 0.1.0-alpha
-assets, installer definitions and frozen portable release folders remain unchanged.
+At this earlier preview stage Cargo/Tauri/npm sources moved to 0.2.0-alpha after
+the cloud/integrity/reporting additions; installers were still frozen at that time.
+This restriction was subsequently lifted for release preparation documented above:
+current installer definitions and packages use 0.2.0-alpha. Published 0.1.0-alpha
+assets remain preserved separately.
 
 Schema 13 creates a singleton notification profile. SQLite stores only destination
 metadata and a reference to a new immutable DPAPI blob. Tokens/passwords never enter

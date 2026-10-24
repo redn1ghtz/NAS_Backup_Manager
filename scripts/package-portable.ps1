@@ -56,7 +56,7 @@ $optionalTools=Join-Path $projectRoot "target/optional-tools/$Architecture"
 if(Test-Path -LiteralPath $optionalTools -PathType Container){
  $toolDestination=Join-Path $outputDirectory 'tools'
  New-Item -ItemType Directory -Path $toolDestination -Force | Out-Null
- foreach($name in @('age.exe','age-keygen.exe','rclone.exe','LICENSE','AGE-LICENSE','RCLONE-COPYING','README.txt','BUILD-SOURCE.json')){
+ foreach($name in @('age.exe','age-keygen.exe','rclone.exe','LICENSE','AGE-LICENSE','RCLONE-COPYING','BUILD-SOURCE.json')){
   $file=Join-Path $optionalTools $name
   if(Test-Path -LiteralPath $file -PathType Leaf){Copy-Item -LiteralPath $file -Destination $toolDestination -Force}
  }

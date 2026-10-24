@@ -44,7 +44,7 @@
 Для локальных и сетевых задач данные копируются **прямо в выбранную папку назначения**.
 В основном облачном режиме используется локальный рабочий кэш размером с копию,
 затем файлы отправляются в OneDrive или Dropbox. Облачная квота показывается отдельно
-от локального диска. Google Drive и Яндекс Диск в этой версии не поддерживаются.
+от локального диска.
 Служебная `.nas-backup-manager` хранит архив, временные файлы и метки владения;
 она исключена из зеркалирования. Старые задачи автоматически не переносятся.
 
@@ -265,8 +265,8 @@ The application and Windows installers support Russian and English.
 The current release is **0.2.0-alpha**. It adds OneDrive/Dropbox backups through a
 local cache, age encryption/recovery keys, SHA-256 integrity verification, retries
 and localized Telegram/email reports. Account settings are shared across jobs;
-Windows DPAPI protects credentials for the current user. Google Drive and Yandex
-Disk are not supported. Keep the private recovery key separately.
+Windows DPAPI protects credentials for the current user. Keep the private recovery
+key separately.
 
 Windows x64 and x86 packages can be built
 using the included scripts; x86 was tested under WOW64, not a native 32-bit OS.
