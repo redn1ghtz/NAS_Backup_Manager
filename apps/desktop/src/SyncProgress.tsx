@@ -11,7 +11,7 @@ export function SyncProgress({activity,t,onCancel,pending}:{activity:LiveProgres
  return <section className="sync-progress" aria-label={`${t.syncProgress}: ${activity.name}`}>
   <div className="progress-heading"><strong><RefreshCw aria-hidden="true"/>{activity.name}</strong><div className="progress-controls"><span><span role="status">{phase}</span>{percent!==undefined?` · ${percent}%`:""}</span><Button variant="outline" size="sm" disabled={!activity.executionId||cancelling||activity.phase==="finalizing"} title={t.cancelSyncHelp} aria-label={`${t.cancelSync}: ${activity.name}`} onClick={()=>onCancel(activity)}><Square data-icon="inline-start" aria-hidden="true"/>{cancelling?t.cancelling:t.cancelSync}</Button></div></div>
   <progress title={t.progressWorkHint} max={100} value={percent} aria-label={`${activity.name}: ${phase}`}/>
-  <div className="progress-details">{!scanning&&<p className="progress-counts">{activity.completed} / {activity.total} · {size(activity.copiedBytes,t.locale)} / {size(activity.totalBytes,t.locale)}</p>}
+  <div className="progress-details">{!scanning&&<p className="progress-counts">{activity.phase==="integrity"?`${t.integrityProcessed}: `:""}{activity.completed} / {activity.total} · {size(activity.phase==="integrity"?activity.verifiedBytes:activity.copiedBytes,t.locale)} / {size(activity.totalBytes,t.locale)}</p>}
   <p className="progress-eta">{eta}</p>{activity.currentPath&&<p className="job-path" title={activity.currentPath}>{activity.currentPath}</p>}</div>
  </section>;
 }

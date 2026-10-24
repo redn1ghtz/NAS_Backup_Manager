@@ -9,7 +9,54 @@ use tauri::{Emitter, Manager};
     rename_all_fields = "camelCase"
 )]
 pub enum Request {
+    NotificationSettings {
+        #[serde(default)]
+        offset: i64,
+    },
+    SaveNotificationSettings {
+        update: nas_backup_core::notification_settings::Update,
+    },
+    ImportNotificationSettings {
+        id: String,
+    },
     Activity,
+    ToolPaths,
+    PrepareCloud {
+        provider: String,
+    },
+    AuthorizeCloud {
+        id: String,
+    },
+    CancelCloudAuthorization {
+        id: String,
+    },
+    CloudConnectionStatus {
+        id: String,
+    },
+    GenerateIdentity {
+        age_executable: String,
+        path: String,
+    },
+    DecryptArchive {
+        id: String,
+        directory: String,
+    },
+    ReadIdentity {
+        path: String,
+    },
+    CloudCapacity {
+        id: String,
+        #[serde(default)]
+        force: bool,
+    },
+    VerifyIntegrity {
+        id: String,
+    },
+    DecryptFile {
+        id: String,
+        relative: String,
+        directory: String,
+    },
     Cancel {
         id: String,
         execution_id: String,
@@ -49,7 +96,7 @@ pub enum Request {
         id: String,
     },
     SaveJob {
-        draft: JobDraft,
+        draft: Box<JobDraft>,
     },
     Preview {
         id: String,
@@ -123,11 +170,18 @@ pub fn state_path(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> 
 pub async fn backup_command(app: tauri::AppHandle, request: Request) -> Result<Value, Failure> {
     let work = matches!(
         request,
-        Request::Run { .. }
+        Request::DecryptArchive { .. }
+            | Request::VerifyIntegrity { .. }
+            | Request::PrepareCloud { .. }
+            | Request::AuthorizeCloud { .. }
+            | Request::DecryptFile { .. }
+            | Request::Run { .. }
             | Request::Cancel { .. }
             | Request::Restore { .. }
             | Request::Cleanup { .. }
             | Request::Preview { .. }
+            | Request::SaveNotificationSettings { .. }
+            | Request::ImportNotificationSettings { .. }
             | Request::SaveJob { .. }
             | Request::Pause { .. }
             | Request::Remove { .. }
@@ -144,6 +198,40 @@ pub async fn backup_command(app: tauri::AppHandle, request: Request) -> Result<V
             nas_backup_storage::database::Database::open(&path).map_err(|_| failure("database"))?;
         let db = &database.connection;
         match request {
+            Request::NotificationSettings {offset} => value(nas_backup_core::notification_settings::get(db,offset)?),
+            Request::SaveNotificationSettings {update} => value(nas_backup_core::notification_settings::save(db,update)?),
+            Request::ImportNotificationSettings {id} => value(nas_backup_core::notification_settings::import_job(db,&id)?),
+            Request::PrepareCloud {provider} => {
+                let exe=std::env::current_exe().map_err(|_|failure("tool_unavailable"))?;
+                let tool=exe.parent().ok_or_else(||failure("tool_unavailable"))?.join("tools").join(if cfg!(windows){"rclone.exe"}else{"rclone"});
+                value(nas_backup_core::cloud_setup::prepare(db,&provider,tool.to_str().ok_or_else(||failure("tool_unavailable"))?)?)
+            }
+            Request::AuthorizeCloud {id} => value(nas_backup_core::cloud_setup::authorize(db,&id)?),
+            Request::CancelCloudAuthorization {id} => value(nas_backup_core::cloud_setup::cancel(db,&id)?),
+            Request::CloudConnectionStatus {id} => value(nas_backup_core::cloud_setup::status(db,&id)?),
+            Request::GenerateIdentity {age_executable,path} => {
+                let age=nas_backup_core::advanced::executable_path(&age_executable)?;
+                let keygen=age.with_file_name(if cfg!(windows){"age-keygen.exe"}else{"age-keygen"});
+                let (recipient,identity)=nas_backup_core::remote::generate_identity(keygen.to_str().ok_or_else(||failure("tool_unavailable"))?,std::path::Path::new(&path))?;
+                value(serde_json::json!({"recipient":recipient,"identity":identity}))
+            }
+            Request::DecryptArchive {id,directory} => value(backup::decrypt_archive(db,&id,std::path::Path::new(&directory))?),
+            Request::ToolPaths => {
+                let exe=std::env::current_exe().map_err(|_|failure("tool_unavailable"))?;
+                let folder=exe.parent().ok_or_else(||failure("tool_unavailable"))?.join("tools");
+                let curl=std::env::var_os("SystemRoot").map(|p|std::path::PathBuf::from(p).join("System32/curl.exe")).unwrap_or_else(||folder.join("curl"));
+                value(serde_json::json!({"age":folder.join(if cfg!(windows){"age.exe"}else{"age"}),"rclone":folder.join(if cfg!(windows){"rclone.exe"}else{"rclone"}),"curl":curl}))
+            }
+            Request::ReadIdentity {path} => {
+                let p=std::path::Path::new(&path);let metadata=std::fs::symlink_metadata(p).map_err(|_|failure("invalid_encryption_key"))?;
+                if !p.is_absolute()||!metadata.is_file()||metadata.len()>65536{return Err(failure("invalid_encryption_key"));}
+                let key=std::fs::read_to_string(p).map_err(|_|failure("invalid_encryption_key"))?;
+                if !key.lines().any(|line|line.starts_with("AGE-SECRET-KEY-"))||key.lines().any(|line|!line.is_empty()&&!line.starts_with('#')&&!line.starts_with("AGE-SECRET-KEY-")){return Err(failure("invalid_encryption_key"));}
+                value(key)
+            }
+            Request::CloudCapacity {id,force} => value(nas_backup_core::remote::capacity(db,&backup::get_job(db,&id)?,force)?),
+            Request::VerifyIntegrity {id} => value(backup::verify_integrity(db,&id)?),
+            Request::DecryptFile {id,relative,directory} => value(backup::decrypt_file(db,&id,&relative,std::path::Path::new(&directory))?),
             Request::Activity => value(nas_backup_core::activity::list(db)?),
             Request::Cancel { id, execution_id } => value(
                 nas_backup_core::activity::request_cancel(db, &id, &execution_id)?,
@@ -182,7 +270,7 @@ pub async fn backup_command(app: tauri::AppHandle, request: Request) -> Result<V
                 nas_backup_scheduler::registration::next_run(&backup::get_job(db, &id)?)
                     .map_err(|code| failure(&code))?,
             ),
-            Request::SaveJob { draft } => value(backup::save_job(db, draft)?),
+            Request::SaveJob { draft } => value(backup::save_job(db, *draft)?),
             Request::Preview { id } => value(backup::preview(db, &id)?),
             Request::Run {
                 id,
@@ -323,6 +411,8 @@ mod tests {
         let state = temp.path().join("state.sqlite");
         let database = nas_backup_storage::database::Database::open(&state).unwrap();
         let mut draft = JobDraft {
+            advanced: Default::default(),
+            secrets: None,
             id: None,
             revision: None,
             name: "Auto activation QA".into(),

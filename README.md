@@ -4,15 +4,15 @@
 
 **Free NAS backup software for Windows.** NAS Backup Manager is an open-source application for scheduled one-way file and folder backups to NAS shares, network drives, local folders and external storage. It supports optional file version retention and restore.
 
-Интерфейс доступен на русском и английском языках. Расписание выполняется при закрытом интерфейсе через Планировщик заданий Windows. **Текущая версия — 0.1.0-alpha:** перед использованием важных данных проверьте программу на тестовых папках. Windows 11 — целевая платформа, но отдельная проверка ещё требуется.
+Интерфейс доступен на русском и английском языках. Расписание выполняется при закрытом интерфейсе через Планировщик заданий Windows. **Текущая версия — 0.2.0-alpha:** перед использованием важных данных проверьте программу на тестовых папках. Windows 11 — целевая платформа, но отдельная проверка ещё требуется.
 
-**Версия:** `0.1.0-alpha` · **Лицензия:** [MIT](LICENSE)
+**Версия:** `0.2.0-alpha` · **Лицензия:** [MIT](LICENSE)
 
 [Релизы](https://github.com/redn1ghtz/NAS_Backup_Manager/releases) ·
 [Сообщить об ошибке](https://github.com/redn1ghtz/NAS_Backup_Manager/issues) ·
 [Автор: redn1ghtz — Vlad Ershov](https://github.com/redn1ghtz)
 
-> Первый альфа-билд. Перед использованием важных данных проверьте приложение на
+> Альфа-версия. Перед использованием важных данных проверьте приложение на
 > тестовых папках. Это одностороннее зеркало с опциональным архивом версий, а не
 > двусторонняя синхронизация или согласованный снимок работающей базы данных.
 
@@ -20,7 +20,12 @@
 
 - Независимые задачи без искусственного ограничения количества.
 - Рекурсивное копирование новых и изменённых файлов; неизменённые пропускаются.
-- Назначение: локальная папка, внешний диск или сетевая папка / NAS.
+- Назначение: локальная папка, внешний диск, сетевая папка / NAS или облако OneDrive/Dropbox через rclone.
+- SHA-256-проверка целостности, прогресс проверенных данных и отмена проверки.
+- Клиентское шифрование age, создание ключа восстановления и расшифровка файлов.
+- Повторы при временных сбоях с экспоненциальной задержкой.
+- Отчёты Telegram и SMTP на языке интерфейса: результат, объём, длительность и дата завершения.
+- Общие настройки Telegram/почты в настройках приложения; выбор каналов отдельно в каждой задаче.
 - Архив удалённых и заменённых файлов на заданное число дней, восстановление
   с проверкой конфликтов и очистка истёкших версий.
 - Режим без архива с подтверждением необратимого удаления и замены копий.
@@ -36,7 +41,10 @@
   доступ, если он разрешён сервером и политиками системы.
 - Без активации, платных функций, искусственного ограничения скорости и телеметрии.
 
-В новой задаче данные копируются **прямо в выбранную папку назначения**.
+Для локальных и сетевых задач данные копируются **прямо в выбранную папку назначения**.
+В основном облачном режиме используется локальный рабочий кэш размером с копию,
+затем файлы отправляются в OneDrive или Dropbox. Облачная квота показывается отдельно
+от локального диска. Google Drive и Яндекс Диск в этой версии не поддерживаются.
 Служебная `.nas-backup-manager` хранит архив, временные файлы и метки владения;
 она исключена из зеркалирования. Старые задачи автоматически не переносятся.
 
@@ -72,6 +80,8 @@ NAS Backup Manager.exe
 nas-backup.exe
 nas-backup-notify.exe
 portable.flag
+tools/             age, age-keygen, rclone и их лицензии
+licenses/          лицензии сторонних библиотек
 ```
 
 CLI выполняет плановые задания без интерфейса, компонент `nas-backup-notify.exe`
@@ -87,6 +97,8 @@ CLI выполняет плановые задания без интерфейс
 Node.js, npm, Rust, Visual Studio и отдельная установка SQLite пользователю
 **не нужны**. Текущие сборки не требуют отдельного Visual C++ Redistributable.
 Установщик не включает WebView2 и не загружает его автоматически.
+Утилиты age, age-keygen и rclone входят в комплект. Для Telegram/SMTP нужен
+`curl.exe` (обычно есть в Windows 10/11; путь можно задать в настройках).
 
 ## Первый бэкап
 
@@ -126,13 +138,29 @@ Node.js, npm, Rust, Visual Studio и отдельная установка SQLit
 Пароли NAS не записываются в SQLite: используется хранилище учётных данных Windows.
 Конфигурация между portable и установленной версией автоматически не переносится.
 Удаление программы сохраняет настройки и историю, отключая в них расписания.
+Облачные токены, пароль SMTP и токен Telegram защищены DPAPI текущего пользователя
+Windows и не возвращаются в интерфейс. Перенос на другой ПК/профиль потребует повторной
+настройки секретов. Закрытый ключ age сохраните отдельно: без него восстановление невозможно.
+
+## Обновление с 0.1.0-alpha
+
+1. Дождитесь завершения работы и отключите расписания. Закройте программу.
+2. Сделайте отдельную копию всей папки настроек (`data/` для portable или каталога
+   `%APPDATA%\org.nasbackupmanager.desktop` для установленной версии).
+3. Для portable замените файлы приложения, `tools/` и `licenses/` из нового ZIP
+   в прежней папке, сохранив `data/`. Для установленной версии запустите новый
+   установщик поверх прежней установки.
+4. Откройте программу, проверьте задачи и предпросмотр, снова включите расписания.
+
+База обновляется до схемы 13. Обратный запуск 0.1.0-alpha с обновлённой базой
+не поддерживается: для отката нужна сохранённая до обновления копия всей папки настроек.
 
 ## Сборка из исходников
 
 Для Windows нужны Rust stable, Node.js LTS с npm, Visual C++ Build Tools с
 компонентами x86/x64 и Windows SDK, WebView2 и компилятор C# из .NET Framework.
-Для установщиков дополнительно нужен **Inno Setup 7**. Python 3 нужен для части
-дополнительных тестов, а не для работы приложения.
+Для установщиков дополнительно нужен **Inno Setup 7**. Python 3 нужен для подготовки
+лицензий/релиза и дополнительных тестов, а не для работы приложения.
 
 Используйте существующие `Cargo.lock` и `apps/desktop/package-lock.json`.
 Команды из корня репозитория, PowerShell:
@@ -143,11 +171,14 @@ npm ci
 Pop-Location
 
 rustup target add i686-pc-windows-msvc
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/prepare-portable-tools.ps1 -Architecture x64
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/prepare-portable-tools.ps1 -Architecture x86 -BuildAgeX86
+python scripts/collect-tool-notices.py
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-release.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-installers.ps1
 ```
 
-Результат появится в `releases/0.1.0-alpha/`:
+Результат появится в `releases/0.2.0-alpha/`:
 
 ```text
 portable-x64/
@@ -205,6 +236,9 @@ docs/             Руководства, архитектура и отчёты
 
 Проверки на настоящих NAS, съёмных дисках, при аварийном отключении питания,
 на 32-битной Windows, Linux и macOS ещё требуют отдельной валидации.
+Облако требует доступного сервиса и входа пользователя; корпоративные аккаунты могут
+требовать разрешения администратора. Реальные аккаунты OneDrive/Dropbox и доставка
+Telegram/SMTP не входят в автоматические локальные тесты.
 Архив имеет срок хранения. Согласованность открытых баз данных и файлов приложений
 без специальных механизмов не гарантируется. Сборки пока не имеют подписи Authenticode.
 
@@ -228,7 +262,13 @@ shares. It copies new and changed files, mirrors deletions with optional version
 retention, supports restore, preview, progress, cancellation and independent jobs.
 The application and Windows installers support Russian and English.
 
-The current release is **0.1.0-alpha**. Windows x64 and x86 packages can be built
+The current release is **0.2.0-alpha**. It adds OneDrive/Dropbox backups through a
+local cache, age encryption/recovery keys, SHA-256 integrity verification, retries
+and localized Telegram/email reports. Account settings are shared across jobs;
+Windows DPAPI protects credentials for the current user. Google Drive and Yandex
+Disk are not supported. Keep the private recovery key separately.
+
+Windows x64 and x86 packages can be built
 using the included scripts; x86 was tested under WOW64, not a native 32-bit OS.
 Linux/macOS adapters exist but those platforms are not yet validated. WebView2
 and the system .NET Framework are required on Windows. Scheduled backups use

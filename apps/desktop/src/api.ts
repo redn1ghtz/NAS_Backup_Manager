@@ -1,11 +1,19 @@
 import type en from "./locales/en.json";
 import { invoke } from "@tauri-apps/api/core";
 
-export interface JobDraft { id: string | null; revision: number | null; name: string; source: string; destination: string; kind: "local" | "network"; scheduleAutomatic: boolean; wakeComputer: boolean; deletionGuardEnabled: boolean; deletionGuardMinFiles: number; retentionDays: number; archiveMode: "days"|"none"; scheduleKind: "daily"|"minutes"|"hours"|"days"|"startup"; scheduleEvery: number; dailyMinute: number; missedRun: "skip" | "run_once_when_available" }
+export interface AdvancedOptions {
+ verifyEnabled:boolean;verifyEveryDays:number;verifyMibPerSecond:number;retryAttempts:number;retryInitialSeconds:number;retryMaxSeconds:number;
+ bandwidthKib:number;bandwidthStartMinute:number;bandwidthEndMinute:number;
+ encryptionRecipient:string;ageExecutable:string;cloudMode:"off"|"primary"|"replica";cloudRemote:string;cloudConnection:string;cloudProvider:string;rcloneExecutable:string;rcloneConfig:string;
+ telegramEnabled:boolean;telegramChat:string;smtpEnabled:boolean;smtpUrl:string;smtpUsername:string;smtpFrom:string;smtpTo:string;curlExecutable:string;vaultId:string;
+}
+export interface JobSecrets {telegramToken?:string;smtpPassword?:string;rclonePassword?:string;ageIdentity?:string}
+export const defaultAdvanced:AdvancedOptions={verifyEnabled:false,verifyEveryDays:7,verifyMibPerSecond:8,retryAttempts:3,retryInitialSeconds:2,retryMaxSeconds:60,bandwidthKib:0,bandwidthStartMinute:540,bandwidthEndMinute:1080,encryptionRecipient:"",ageExecutable:"",cloudMode:"off",cloudRemote:"",cloudConnection:"",cloudProvider:"",rcloneExecutable:"",rcloneConfig:"",telegramEnabled:false,telegramChat:"",smtpEnabled:false,smtpUrl:"smtps://smtp.example.com:465",smtpUsername:"",smtpFrom:"",smtpTo:"",curlExecutable:"",vaultId:""};
+export interface JobDraft { advanced:AdvancedOptions; secrets?:JobSecrets; id: string | null; revision: number | null; name: string; source: string; destination: string; kind: "local" | "network"; scheduleAutomatic: boolean; wakeComputer: boolean; deletionGuardEnabled: boolean; deletionGuardMinFiles: number; retentionDays: number; archiveMode: "days"|"none"; scheduleKind: "daily"|"minutes"|"hours"|"days"|"startup"; scheduleEvery: number; dailyMinute: number; missedRun: "skip" | "run_once_when_available" }
 export interface Job extends Omit<JobDraft,"id"|"revision"> { id:string; revision:number; enabled:boolean; scheduleEnabled:boolean; schedulePending:boolean; scheduleAnchor:string; currentPath:string; destinationLayout:"isolated"|"direct"; lastResult:string|null; lastError:string|null; lastRun:number|null }
 export interface Preview {id:string; created:number; updated:number; deleted:number; unchanged:number; bytes:number; massDeletion:boolean; databaseWarning:boolean; archiveDisabled:boolean}
 export interface Operation {path:string;kind:string;bytes:number}
-export interface ArchiveEntry {id:string;path:string;archivedAt:number;expiresAt:number;bytes:number;reason:string}
+export interface ArchiveEntry {id:string;path:string;archivedAt:number;expiresAt:number;bytes:number;reason:string;encrypted:boolean}
 export interface HistoryEntry {id:string;jobId:string;name:string;state:string;startedAt:number;finishedAt:number|null;errorCode:string|null;triggerKind:string}
 export interface ApiFailure {code:string;detail:string}
 export function call<T>(request:Record<string,unknown>):Promise<T>{return invoke<T>("backup_command",{request});}
@@ -44,7 +52,9 @@ export function isSourceChanged(code:string|null|undefined){return code==="stale
 
 export function sameJobPage(previous:Job[],next:Job[]){return JSON.stringify(previous)===JSON.stringify(next);}
 export function progressPercent(activity:Pick<LiveProgress,"phase"|"totalBytes"|"copiedBytes"|"verifiedBytes"|"total"|"completed">){
- if(activity.phase==="scanning")return undefined;
+ if(["scanning","cloudIntegrity","retrying"].includes(activity.phase))return undefined;
+ if(["cloud","cloudArchive"].includes(activity.phase))return activity.totalBytes>0?Math.max(0,Math.min(99,Math.floor(activity.copiedBytes/activity.totalBytes*100))):undefined;
+ if(activity.phase==="integrity")return activity.totalBytes>0?Math.max(0,Math.min(99,Math.floor(activity.verifiedBytes/activity.totalBytes*100))):undefined;
  const total=activity.totalBytes>0?activity.totalBytes*2:activity.total;
  const completed=activity.totalBytes>0?activity.copiedBytes+(activity.verifiedBytes??0):activity.completed;
  return total>0?Math.max(0,Math.min(99,Math.floor(completed/total*100))):undefined;

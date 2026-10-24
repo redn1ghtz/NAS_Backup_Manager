@@ -57,3 +57,18 @@ The headless CLI uses the already locked static_vcruntime 3.0.0 build helper
 using Windows 10's system UCRT. No new crate version is introduced. MSVC runtime
 redistribution remains subject to the installed Visual Studio license terms;
 retain applicable Microsoft notices when distributing compiled binaries.
+
+
+## Bundled age and rclone tools
+
+The preview includes official rclone 1.75.2 (MIT) and age 1.3.2 (BSD-3-Clause). Windows x86 age is compiled from the official module with the Go toolchain. Their notices are provided under tools/AGE-LICENSE, tools/RCLONE-COPYING and tools/notices/. Go is a build-only tool and is not included. These tools run only when requested by job options. See docs/ADVANCED.md and scripts/prepare-portable-tools.ps1 for provenance and build commands. Public release compliance review must also cover the external binaries and their transitive notices.
+
+The 0.2.0-alpha release includes tools/notices/modules/inventory.json and texts
+collected from 248 exact Go modules linked across the Windows x64/x86 binaries.
+Some rclone dependencies use MPL-2.0; github.com/cloudsoda/sddl uses LGPL-3.0.
+The release's separate tool-sources.zip supplies the exact corresponding module
+source archives, including rclone itself, with build/replacement instructions.
+See docs/TOOL_SOURCES.md (shipped as TOOL_SOURCES.md) for how to obtain and rebuild
+them. Those components retain their own licenses, not this application's MIT.
+Users may rebuild and replace tools/rclone.exe with a compatible modified build;
+the application does not require a vendor signature for that executable.
